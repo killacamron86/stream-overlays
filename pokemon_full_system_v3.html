@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stream Pokemon</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:'Press Start 2P',monospace;}
+
+/* ══ GUESS WIDGET top-right ══ */
+#guess-widget{position:fixed;top:30px;right:30px;width:280px;opacity:0;transform:translateY(-20px);transition:opacity .4s,transform .4s cubic-bezier(.17,.67,.35,1.4);pointer-events:none;z-index:100;}
+#guess-widget.visible{opacity:1;transform:translateY(0);}
+.tv-frame{background:#1a1a2e;border:5px solid #FFD700;border-radius:16px;padding:12px;box-shadow:0 0 0 3px #b8860b,0 8px 32px rgba(0,0,0,.8);}
+.tv-top{background:#FFD700;padding:6px 10px;margin:-12px -12px 10px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between;}
+.tv-title{font-size:7px;color:#1a1a2e;letter-spacing:1px;line-height:1.5;}
+.tv-dot{width:8px;height:8px;border-radius:50%;background:#e74c3c;box-shadow:0 0 6px #e74c3c;animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.pkm-area{background:#0d0d1a;border-radius:8px;padding:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;height:150px;position:relative;overflow:hidden;border:2px solid #2a2a4a;}
+.pkm-area::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:3;}
+#pkm-img{max-width:120px;max-height:130px;object-fit:contain;filter:brightness(0);transition:filter 1s;image-rendering:pixelated;position:relative;z-index:2;}
+#pkm-img.revealed{filter:brightness(1) drop-shadow(0 0 10px #FFD700);}
+.qmarks{position:absolute;inset:0;z-index:1;pointer-events:none;}
+.qmark{position:absolute;color:rgba(255,215,0,.15);animation:floatQ 3s ease-in-out infinite;}
+@keyframes floatQ{0%,100%{transform:translateY(0) rotate(-5deg);opacity:.15}50%{transform:translateY(-8px) rotate(5deg);opacity:.3}}
+#gen-badge{position:absolute;top:8px;right:8px;background:#FFD700;color:#1a1a2e;font-size:6px;padding:3px 6px;border-radius:4px;z-index:4;}
+.timer-wrap{margin-bottom:8px;}
+.timer-label{font-size:6px;color:#FFD700;margin-bottom:4px;}
+.timer-bg{background:#0d0d1a;border:2px solid #2a2a4a;border-radius:4px;height:10px;overflow:hidden;}
+#timer-bar{height:100%;background:linear-gradient(90deg,#00c853,#FFD700,#e74c3c);border-radius:2px;width:100%;transition:width 1s linear;}
+.hint-text{font-size:7px;color:#fff;text-align:center;margin-bottom:5px;}
+#pkm-name-display{font-size:10px;color:#FFD700;text-align:center;letter-spacing:2px;text-shadow:2px 2px 0 #b8860b;min-height:14px;}
+
+/* ══ CATCH PHASE — bottom-right, same spot as battle ══ */
+#catch-phase{position:fixed;bottom:20px;right:20px;width:320px;background:#1a1a2e;border:3px solid #e74c3c;border-radius:16px;padding:14px;opacity:0;transform:translateY(20px) scale(0.97);transition:opacity .4s,transform .4s cubic-bezier(.17,.67,.35,1.4);z-index:790;pointer-events:none;box-shadow:0 0 0 2px #8b0000,0 8px 32px rgba(0,0,0,.9);}
+#catch-phase.show{opacity:1;transform:translateY(0) scale(1);}
+.catch-title{font-size:7px;color:#e74c3c;text-align:center;margin-bottom:10px;letter-spacing:1px;}
+.balls-row{display:flex;gap:10px;justify-content:center;margin-bottom:8px;}
+.ball-item{text-align:center;}
+.ball-emoji{font-size:22px;display:block;}
+.ball-label{font-size:5px;color:#FFD700;margin-top:2px;}
+.ball-rate{font-size:5px;color:#888;}
+.catch-hint{font-size:5px;color:#aaa;text-align:center;line-height:1.8;}
+
+/* ══ CATCH ANIMATION ══ */
+#catch-anim{position:fixed;inset:0;pointer-events:none;z-index:500;display:none;}
+.ball-throw{position:absolute;font-size:55px;animation:throwBall .8s cubic-bezier(.25,.46,.45,.94) forwards;}
+@keyframes throwBall{from{bottom:180px;left:180px;transform:scale(.4) rotate(0)}to{bottom:380px;left:760px;transform:scale(1.3) rotate(720deg)}}
+@keyframes shakeBall{0%,100%{transform:rotate(0)}25%{transform:rotate(-15deg)}75%{transform:rotate(15deg)}}
+.catch-result{position:absolute;top:33%;left:50%;transform:translateX(-50%) scale(0);font-size:32px;color:#FFD700;-webkit-text-stroke:3px #000;white-space:nowrap;animation:popIn .4s .9s cubic-bezier(.17,.67,.35,1.5) forwards;}
+@keyframes popIn{to{transform:translateX(-50%) scale(1)}}
+
+/* ══ WINNER BANNER ══ */
+#winner-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:200;text-align:center;pointer-events:none;transition:transform .35s cubic-bezier(.17,.67,.35,1.5);}
+#winner-banner.show{transform:translate(-50%,-50%) scale(1);}
+.winner-box{background:#1a1a2e;border:5px solid #FFD700;border-radius:20px;padding:24px 36px;box-shadow:0 0 0 3px #b8860b,0 20px 60px rgba(0,0,0,.9);}
+.winner-top{font-size:12px;color:#FFD700;letter-spacing:2px;margin-bottom:8px;text-shadow:3px 3px 0 #b8860b;}
+.winner-name{font-size:20px;color:#fff;letter-spacing:3px;margin-bottom:6px;text-shadow:3px 3px 0 #e74c3c;animation:pulse .5s infinite alternate;}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.04)}}
+.winner-pkm{font-size:10px;color:#FFD700;letter-spacing:2px;}
+.winner-spr{width:70px;height:70px;object-fit:contain;margin:8px auto 0;display:block;image-rendering:pixelated;filter:drop-shadow(0 0 10px #FFD700);animation:bounce .4s infinite alternate;}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+
+/* ══ NOBODY BANNER ══ */
+#nobody-banner{position:fixed;top:30px;right:30px;background:#1a1a2e;border:3px solid #e74c3c;border-radius:10px;padding:10px 14px;opacity:0;transform:translateY(-10px);transition:opacity .3s,transform .3s;z-index:150;pointer-events:none;}
+#nobody-banner.show{opacity:1;transform:translateY(0);}
+.nobody-text{font-size:6px;color:#e74c3c;}
+.nobody-ans{font-size:8px;color:#FFD700;margin-top:4px;}
+#time-warning{position:fixed;top:8px;right:30px;background:#e74c3c;border-radius:8px;padding:5px 10px;opacity:0;font-size:6px;color:#fff;transition:opacity .2s;z-index:150;pointer-events:none;}
+#time-warning.show{opacity:1;}
+
+/* ══ LEADERBOARD — removed from overlay, lives in About Me ══ */
+#leaderboard{display:none!important;}
+
+/* ══ NOTIFICATION top-left ══ */
+#notif{position:fixed;top:30px;left:30px;background:#1a1a2e;border:3px solid #2ecc71;border-radius:10px;padding:8px 12px;opacity:0;transform:translateY(-15px);transition:opacity .3s,transform .3s;z-index:200;pointer-events:none;max-width:400px;}
+#notif.show{opacity:1;transform:translateY(0);}
+.notif-top{font-size:5px;color:#2ecc71;letter-spacing:1px;}
+.notif-msg{font-size:7px;color:#FFD700;margin-top:3px;}
+
+/* ══════════════════════════════════════════
+   BATTLE SYSTEM — bottom-right corner, smaller
+══════════════════════════════════════════ */
+#battle-screen{position:fixed;bottom:20px;right:20px;width:560px;height:360px;background:#1a1a2e;border:3px solid #FFD700;border-radius:16px;z-index:800;display:none;flex-direction:column;overflow:hidden;box-shadow:0 0 0 2px #b8860b,0 8px 40px rgba(0,0,0,.9);}
+#battle-screen.show{display:flex;}
+
+/* Battle arena */
+.battle-arena{flex:1;position:relative;background:linear-gradient(180deg,#0a0a1a 0%,#1a1a2e 60%,#2a1a0e 100%);overflow:hidden;display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+
+/* Ground strips */
+.battle-arena::before{content:'';position:absolute;bottom:60px;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,#FFD700,transparent);opacity:.3;}
+
+/* Pokemon sprites in battle */
+.battle-pkm-left{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.battle-pkm-right{display:flex;flex-direction:column;align-items:center;gap:4px;}
+
+.battle-sprite{width:100px;height:100px;object-fit:contain;image-rendering:pixelated;}
+.battle-sprite.player{filter:drop-shadow(0 0 10px rgba(52,152,219,.6));animation:idleLeft 1.5s ease-in-out infinite alternate;}
+.battle-sprite.enemy{filter:drop-shadow(0 0 10px rgba(231,76,60,.6));animation:idleRight 1.5s ease-in-out infinite alternate;}
+@keyframes idleLeft{from{transform:translateY(0) scale(1)}to{transform:translateY(-5px) scale(1.02)}}
+@keyframes idleRight{from{transform:translateY(-5px) scale(1)}to{transform:translateY(0) scale(1.02)}}
+
+.battle-sprite.attacking{animation:attackAnim .6s ease-in-out!important;}
+@keyframes attackAnim{0%{transform:translateX(0)}30%{transform:translateX(80px) scale(1.1)}60%{transform:translateX(-10px)}100%{transform:translateX(0)}}
+.battle-sprite.attacked{animation:hitAnim .5s ease-in-out!important;}
+@keyframes hitAnim{0%,100%{opacity:1;filter:brightness(1)}25%,75%{opacity:.2;filter:brightness(3) sepia(1) hue-rotate(0deg)}}
+.battle-sprite.defending{animation:defendAnim .6s ease-in-out!important;}
+@keyframes defendAnim{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+
+/* HP bars */
+.hp-card{background:rgba(0,0,0,.75);border:2px solid #FFD700;border-radius:8px;padding:6px 10px;min-width:140px;max-width:160px;}
+.hp-card.enemy-card{border-color:#e74c3c;}
+.hp-trainer{font-size:5px;color:#aaa;margin-bottom:2px;}
+.hp-name{font-size:7px;color:#FFD700;margin-bottom:2px;text-shadow:1px 1px 0 #b8860b;}
+.hp-name.enemy-name{color:#e74c3c;text-shadow:1px 1px 0 #8b0000;}
+.hp-types{display:flex;gap:3px;margin-bottom:4px;flex-wrap:wrap;}
+.type-pip{font-size:4px;padding:1px 4px;border-radius:3px;}
+.hp-bar-bg{background:#0d0d1a;border-radius:3px;height:8px;overflow:hidden;border:1px solid #2a2a4a;margin-bottom:3px;}
+.hp-bar{height:100%;border-radius:2px;transition:width .6s ease;}
+.hp-bar.high{background:linear-gradient(90deg,#2ecc71,#27ae60);}
+.hp-bar.mid{background:linear-gradient(90deg,#f39c12,#e67e22);}
+.hp-bar.low{background:linear-gradient(90deg,#e74c3c,#c0392b);animation:hpBlink .5s infinite alternate;}
+@keyframes hpBlink{from{opacity:1}to{opacity:.6}}
+.hp-numbers{font-size:5px;color:#aaa;text-align:right;}
+
+/* Move buttons */
+.battle-ui{background:#0d0d1a;border-top:2px solid #FFD700;padding:6px 10px;display:flex;flex-direction:column;gap:5px;}
+.battle-msg-box{background:#1a1a2e;border:2px solid #2a2a4a;border-radius:6px;padding:5px 10px;font-size:6px;color:#fff;min-height:22px;letter-spacing:1px;position:relative;}
+.battle-msg-box::after{content:'▼';position:absolute;right:8px;bottom:4px;font-size:6px;color:#FFD700;animation:blink 1s infinite;}
+.battle-moves{display:flex;gap:6px;justify-content:center;}
+.move-btn{background:#1a1a2e;border:2px solid #2a2a4a;border-radius:6px;padding:5px 10px;font-family:'Press Start 2P',monospace;font-size:6px;cursor:pointer;transition:all .2s;color:#fff;min-width:100px;}
+.move-btn:hover:not(:disabled){transform:translateY(-1px);}
+.move-btn:disabled{opacity:.4;cursor:not-allowed;}
+.move-btn.attack{border-color:#e74c3c;color:#e74c3c;}
+.move-btn.attack:hover:not(:disabled){background:#2a0a0a;}
+.move-btn.special{border-color:#3498db;color:#3498db;}
+.move-btn.special:hover:not(:disabled){background:#0a1a2a;}
+.move-btn.defend{border-color:#2ecc71;color:#2ecc71;}
+.move-btn.defend:hover:not(:disabled){background:#0a2a1a;}
+.battle-turn-info{font-size:5px;color:#FFD700;text-align:center;}
+
+/* Battle result overlay */
+#battle-result{position:absolute;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:900;flex-direction:column;gap:10px;}
+#battle-result.show{display:flex;}
+.result-title{font-size:18px;color:#FFD700;text-shadow:3px 3px 0 #b8860b;animation:pulse .6s infinite alternate;}
+.result-sub{font-size:7px;color:#fff;letter-spacing:2px;text-shadow:2px 2px 0 #000;}
+.result-spr{width:60px;height:60px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 0 10px #FFD700);animation:bounce .4s infinite alternate;}
+
+/* Pending challenge — top-left so it doesn't overlap battle */
+#challenge-notif{position:fixed;top:30px;left:30px;background:#1a1a2e;border:3px solid #9b59b6;border-radius:12px;padding:10px 14px;opacity:0;transform:translateY(-10px);transition:opacity .3s,transform .3s;z-index:300;pointer-events:none;width:280px;}
+#challenge-notif.show{opacity:1;transform:translateY(0);}
+.chal-title{font-size:6px;color:#9b59b6;margin-bottom:5px;}
+.chal-msg{font-size:7px;color:#fff;margin-bottom:6px;line-height:1.6;}
+.chal-hint{font-size:5px;color:#aaa;}
+
+/* Confetti */
+.confetti-piece{position:fixed;top:-10px;z-index:999;pointer-events:none;border-radius:2px;}
+
+/* Type colors */
+.type-normal{background:#A8A878;color:#fff;} .type-fire{background:#F08030;color:#fff;}
+.type-water{background:#6890F0;color:#fff;} .type-electric{background:#F8D030;color:#000;}
+.type-grass{background:#78C850;color:#fff;} .type-ice{background:#98D8D8;color:#000;}
+.type-fighting{background:#C03028;color:#fff;} .type-poison{background:#A040A0;color:#fff;}
+.type-ground{background:#E0C068;color:#000;} .type-flying{background:#A890F0;color:#fff;}
+.type-psychic{background:#F85888;color:#fff;} .type-bug{background:#A8B820;color:#fff;}
+.type-rock{background:#B8A038;color:#fff;} .type-ghost{background:#705898;color:#fff;}
+.type-dragon{background:#7038F8;color:#fff;} .type-dark{background:#705848;color:#fff;}
+.type-steel{background:#B8B8D0;color:#000;} .type-fairy{background:#EE99AC;color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- ══ GUESS WIDGET ══ -->
+<div id="guess-widget">
+  <div class="tv-frame">
+    <div class="tv-top">
+      <div class="tv-title">WHO'S THAT<br>POKEMON?</div>
+      <div class="tv-dot"></div>
+    </div>
+    <div class="pkm-area">
+      <div class="qmarks" id="qmarks"></div>
+      <span id="gen-badge">GEN ?</span>
+      <img id="pkm-img" src="" />
+    </div>
+    <div class="timer-wrap">
+      <div class="timer-label">TIME REMAINING</div>
+      <div class="timer-bg"><div id="timer-bar"></div></div>
+    </div>
+    <div class="hint-text">TYPE IN CHAT TO GUESS!</div>
+    <div id="pkm-name-display">???????????</div>
+  </div>
+</div>
+
+<!-- ══ CATCH PHASE ══ -->
+<div id="catch-phase">
+  <div class="catch-title">⚡ CATCH IT! REDEEM A BALL! ⚡</div>
+  <div class="balls-row">
+    <div class="ball-item"><span class="ball-emoji">🔴</span><div class="ball-label">POKÉBALL</div><div class="ball-rate">45%</div></div>
+    <div class="ball-item"><span class="ball-emoji">🔵</span><div class="ball-label">GREAT BALL</div><div class="ball-rate">65%</div></div>
+    <div class="ball-item"><span class="ball-emoji">🟡</span><div class="ball-label">ULTRA BALL</div><div class="ball-rate">85%</div></div>
+    <div class="ball-item"><span class="ball-emoji">⚪</span><div class="ball-label">MASTER BALL</div><div class="ball-rate">100%</div></div>
+  </div>
+  <div class="catch-hint">Redeem channel points to throw a ball!<br>!battle @username to fight with caught Pokemon!</div>
+</div>
+
+<!-- ══ CATCH ANIMATION ══ -->
+<div id="catch-anim"></div>
+
+<!-- ══ WINNER BANNER ══ -->
+<div id="winner-banner">
+  <div class="winner-box">
+    <div class="winner-top">🎉 CORRECT! 🎉</div>
+    <div class="winner-name" id="winner-name-text">VIEWER</div>
+    <div class="winner-pkm" id="winner-pkm-text">GOT IT!</div>
+    <img id="winner-spr" src="" class="winner-spr" />
+  </div>
+</div>
+
+<!-- ══ NOBODY / TIME ══ -->
+<div id="nobody-banner"><div class="nobody-text">NOBODY GOT IT! IT WAS...</div><div class="nobody-ans" id="nobody-ans"></div></div>
+<div id="time-warning">⚠ 5 SECONDS LEFT!</div>
+
+<!-- ══ LEADERBOARD ══ -->
+<div id="leaderboard">
+  <div class="lb-title">🏆 TOP TRAINERS</div>
+  <div id="lb-rows"></div>
+</div>
+
+<!-- ══ NOTIFICATION ══ -->
+<div id="notif"><div class="notif-top" id="notif-top">INFO</div><div class="notif-msg" id="notif-msg"></div></div>
+
+<!-- ══ CHALLENGE NOTIFICATION ══ -->
+<div id="challenge-notif">
+  <div class="chal-title">⚔️ BATTLE CHALLENGE!</div>
+  <div class="chal-msg" id="chal-msg"></div>
+  <div class="chal-hint" id="chal-hint"></div>
+</div>
+
+<!-- ══ BATTLE SCREEN ══ -->
+<div id="battle-screen">
+  <div class="battle-arena" id="battle-arena">
+
+    <!-- Left: challenger -->
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
+      <div class="hp-card" id="p1-card">
+        <div class="hp-trainer" id="p1-trainer">TRAINER 1</div>
+        <div class="hp-name" id="p1-name">POKEMON</div>
+        <div class="hp-types" id="p1-types"></div>
+        <div class="hp-bar-bg"><div class="hp-bar high" id="p1-hp-bar" style="width:100%"></div></div>
+        <div class="hp-numbers" id="p1-hp-num">100/100</div>
+      </div>
+      <img class="battle-sprite player" id="p1-sprite" src="" />
+    </div>
+
+    <!-- VS -->
+    <div style="font-size:14px;color:#FFD700;text-shadow:2px 2px 0 #b8860b;opacity:.6;">VS</div>
+
+    <!-- Right: defender -->
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+      <div class="hp-card enemy-card" id="p2-card">
+        <div class="hp-trainer" id="p2-trainer">TRAINER 2</div>
+        <div class="hp-name enemy-name" id="p2-name">POKEMON</div>
+        <div class="hp-types" id="p2-types"></div>
+        <div class="hp-bar-bg"><div class="hp-bar high" id="p2-hp-bar" style="width:100%"></div></div>
+        <div class="hp-numbers" id="p2-hp-num">100/100</div>
+      </div>
+      <img class="battle-sprite enemy" id="p2-sprite" src="" />
+
+    <!-- Battle result overlay -->
+    <div id="battle-result">
+      <img class="result-spr" id="result-spr" src="">
+      <div class="result-title" id="result-title">WINNER!</div>
+      <div class="result-sub" id="result-sub"></div>
+    </div>
+  </div>
+
+  <!-- Battle UI -->
+  <div class="battle-ui">
+    <div class="battle-msg-box" id="battle-msg">A wild battle begins!</div>
+    <div class="battle-moves" id="battle-moves">
+      <button class="move-btn attack" id="btn-attack" onclick="playerMove('attack')">⚔️ ATTACK</button>
+      <button class="move-btn special" id="btn-special" onclick="playerMove('special')">✨ SPECIAL</button>
+      <button class="move-btn defend" id="btn-defend" onclick="playerMove('defend')">🛡️ DEFEND</button>
+    </div>
+    <div class="battle-turn-info" id="battle-turn-info">Waiting for battle...</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════
+const DB={
+  save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},
+  load(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+};
+let leaderboard=DB.load('pkm_leaderboard',{});
+let caughtLog=DB.load('pkm_caught_log',[]);
+// STREAMER name — change this to your Twitch username!
+const STREAMER_NAME='STREAMER';
+// MOD list — add mod usernames here
+const MODS=['mod1','mod2'];
+
+function saveAll(){DB.save('pkm_leaderboard',leaderboard);DB.save('pkm_caught_log',caughtLog);}
+function getOrCreate(u){if(!leaderboard[u])leaderboard[u]={guessed:0,caught:0,pokedex:[],battleWins:0};return leaderboard[u];}
+function addGuess(u){getOrCreate(u).guessed++;saveAll();renderLB();}
+function addCatch(u,id){const p=getOrCreate(u);p.caught++;if(!p.pokedex.includes(id))p.pokedex.push(id);saveAll();renderLB();}
+function addWin(u){getOrCreate(u).battleWins=(getOrCreate(u).battleWins||0)+1;saveAll();renderLB();}
+function getPokedex(u){return (leaderboard[u]&&leaderboard[u].pokedex)||[];}
+
+// ═══════════════════════════════════════════════
+// GUESS GAME STATE
+// ═══════════════════════════════════════════════
+const CFG={guessDur:20,totalPkm:1025,sbPort:7474};
+let curPkm=null,curAnswers=[],timerInt=null,timeLeft=0;
+let gameActive=false,catchActive=false,correctGuesser=null,guessLock=false;
+
+// ═══════════════════════════════════════════════
+// POKEAPI
+// ═══════════════════════════════════════════════
+async function fetchPkm(id){
+  try{
+    const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+    const d=await r.json();
+    return{
+      id,name:d.name,
+      sprite:d.sprites.front_default||d.sprites.other['official-artwork'].front_default,
+      spriteBack:d.sprites.back_default||d.sprites.front_default,
+      types:d.types.map(t=>t.type.name),
+      stats:{hp:d.stats[0].base_stat,atk:d.stats[1].base_stat,def:d.stats[2].base_stat,spa:d.stats[3].base_stat,spd:d.stats[4].base_stat,spe:d.stats[5].base_stat},
+      gen:genFromId(id),
+      answers:answerVariants(d.name)
+    };
+  }catch(e){return null;}
+}
+async function fetchPkmByName(name){
+  try{
+    const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${name.toLowerCase().replace(/ /g,'-')}`);
+    const d=await r.json();
+    return{
+      id:d.id,name:d.name,
+      sprite:d.sprites.front_default,
+      spriteBack:d.sprites.back_default||d.sprites.front_default,
+      types:d.types.map(t=>t.type.name),
+      stats:{hp:d.stats[0].base_stat,atk:d.stats[1].base_stat,def:d.stats[2].base_stat,spa:d.stats[3].base_stat,spd:d.stats[4].base_stat,spe:d.stats[5].base_stat},
+      gen:genFromId(d.id)
+    };
+  }catch(e){return null;}
+}
+function genFromId(id){if(id<=151)return 1;if(id<=251)return 2;if(id<=386)return 3;if(id<=493)return 4;if(id<=649)return 5;if(id<=721)return 6;if(id<=809)return 7;if(id<=905)return 8;return 9;}
+function answerVariants(n){const c=n.toLowerCase();return[c,c.replace(/-/g,' '),c.replace(/-/g,''),c.replace(/-/g,'.')].filter((v,i,a)=>a.indexOf(v)===i);}
+function normGuess(s){return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g,'');}
+function fmtName(n){return n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');}
+
+// ═══════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════
+let ac=null;
+function getAC(){if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();return ac;}
+function playNotes(notes,type='square',vol=.13,sp=.12){
+  try{const a=getAC();notes.forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type=type;o.frequency.value=f;const t=a.currentTime+i*sp;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+sp+.05);o.start(t);o.stop(t+sp+.1);});}catch(e){}
+}
+const sndStart=()=>playNotes([261,329,392,523]);
+const sndWin=()=>playNotes([392,523,659,784,1047],'square',.18,.1);
+const sndReveal=()=>playNotes([262,294,330,349,392,440,494,523],'square',.12,.07);
+const sndTick=()=>playNotes([440],'square',.06,.05);
+const sndCatch=()=>playNotes([300,250,200,150],'sawtooth',.2,.15);
+const sndEscape=()=>playNotes([500,400,300],'square',.15,.12);
+const sndHit=()=>playNotes([200,150],'sawtooth',.25,.1);
+const sndCrit=()=>playNotes([660,880,1100],'square',.2,.08);
+const sndBattleWin=()=>playNotes([392,494,659,784,988,1319],'square',.2,.09);
+const sndDefend=()=>playNotes([330,294,262],'square',.15,.1);
+
+// ═══════════════════════════════════════════════
+// CONFETTI
+// ═══════════════════════════════════════════════
+const CC=['#FFD700','#e74c3c','#3498db','#2ecc71','#9b59b6','#fff','#f39c12'];
+function confetti(){for(let i=0;i<80;i++)setTimeout(()=>{const e=document.createElement('div');e.className='confetti-piece';e.style.cssText=`left:${Math.random()*100}vw;background:${CC[Math.floor(Math.random()*CC.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>.5?'50%':'2px'};`;document.body.appendChild(e);e.animate([{transform:'translateY(0) translateX(0) rotate(0)',opacity:1},{transform:`translateY(${window.innerHeight+50}px) translateX(${(Math.random()-.5)*200}px) rotate(${Math.random()*720}deg)`,opacity:.5}],{duration:1500+Math.random()*1500}).onfinish=()=>e.remove();},i*30);}
+
+// ═══════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════
+function renderLB(){
+  const sorted=Object.entries(leaderboard).map(([n,d])=>({n,g:d.guessed||0,c:d.caught||0,w:d.battleWins||0,total:(d.guessed||0)+(d.caught||0)*2+(d.battleWins||0)*3})).sort((a,b)=>b.total-a.total).slice(0,5);
+  const el=document.getElementById('lb-rows');el.innerHTML='';
+  if(!sorted.length){el.innerHTML='<div style="font-size:5px;color:#555;text-align:center">No data yet!</div>';return;}
+  sorted.forEach((p,i)=>{
+    const r=document.createElement('div');r.className='lb-row'+(i===0?' gold':'');
+    r.innerHTML=`<div class="lb-rank">${['🥇','🥈','🥉','4','5'][i]}</div><div class="lb-name">${p.n}</div><div class="lb-stats"><span style="color:#3498db">✓${p.g}</span> <span style="color:#2ecc71">⚡${p.c}</span> <span style="color:#e74c3c">⚔${p.w}</span></div>`;
+    el.appendChild(r);
+  });
+  document.getElementById('leaderboard').classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════
+let notifTimeout=null;
+function showNotif(top,msg,color='#2ecc71',dur=3000){
+  document.getElementById('notif-top').textContent=top;
+  document.getElementById('notif-msg').textContent=msg;
+  document.getElementById('notif').style.borderColor=color;
+  document.getElementById('notif').classList.add('show');
+  if(notifTimeout)clearTimeout(notifTimeout);
+  notifTimeout=setTimeout(()=>document.getElementById('notif').classList.remove('show'),dur);
+}
+
+// ═══════════════════════════════════════════════
+// GUESS GAME
+// ═══════════════════════════════════════════════
+function spawnQmarks(){
+  const c=document.getElementById('qmarks');c.innerHTML='';
+  [[10,10],[70,5],[20,60],[60,50],[40,20],[80,70],[5,75],[85,25]].forEach(([l,t],i)=>{
+    const e=document.createElement('div');e.className='qmark';e.textContent='?';e.style.left=l+'%';e.style.top=t+'%';e.style.animationDelay=(i*.3)+'s';e.style.fontSize=(18+Math.random()*16)+'px';c.appendChild(e);
+  });
+}
+async function startGame(){
+  if(gameActive||catchActive||battleActive)return;
+  hideAll(false);
+  const id=Math.floor(Math.random()*CFG.totalPkm)+1;
+  const pkm=await fetchPkm(id);
+  if(!pkm||!pkm.sprite)return;
+  curPkm=pkm;curAnswers=pkm.answers;correctGuesser=null;guessLock=false;gameActive=true;
+  const img=document.getElementById('pkm-img');img.src=pkm.sprite;img.className='';img.style.filter='brightness(0)';
+  document.getElementById('gen-badge').textContent='GEN '+pkm.gen;
+  document.getElementById('pkm-name-display').textContent='???????????';
+  spawnQmarks();
+  document.getElementById('guess-widget').classList.add('visible');
+  sndStart();
+  timeLeft=CFG.guessDur;
+  document.getElementById('timer-bar').style.width='100%';
+  document.getElementById('timer-bar').style.transition='width 1s linear';
+  timerInt=setInterval(()=>{
+    timeLeft--;
+    document.getElementById('timer-bar').style.width=((timeLeft/CFG.guessDur)*100)+'%';
+    if(timeLeft===5){document.getElementById('time-warning').classList.add('show');sndTick();}
+    if(timeLeft<=3&&timeLeft>0)sndTick();
+    if(timeLeft<=0){clearInterval(timerInt);timeoutGame();}
+  },1000);
+}
+function revealPkm(){
+  const img=document.getElementById('pkm-img');img.style.filter='';img.classList.add('revealed');
+  document.getElementById('pkm-name-display').textContent=fmtName(curPkm.name).toUpperCase();
+  document.getElementById('qmarks').innerHTML='';
+}
+function correctGuess(viewer){
+  if(!gameActive||guessLock)return;
+  guessLock=true;gameActive=false;clearInterval(timerInt);correctGuesser=viewer;
+  document.getElementById('time-warning').classList.remove('show');
+  document.getElementById('timer-bar').style.width='100%';
+  revealPkm();
+  document.getElementById('winner-name-text').textContent=viewer.toUpperCase();
+  document.getElementById('winner-pkm-text').textContent="IT'S "+fmtName(curPkm.name).toUpperCase()+'!';
+  document.getElementById('winner-spr').src=curPkm.sprite;
+  document.getElementById('winner-banner').classList.add('show');
+  addGuess(viewer);sndWin();confetti();
+  // After 3s hide winner banner, show catch phase in bottom-right
+  setTimeout(()=>{
+    document.getElementById('winner-banner').classList.remove('show');
+    showCatchPhase();
+  },3000);
+}
+function showCatchPhase(){
+  if(battleActive)return; // don't show if battle is running
+  catchActive=true;
+  document.getElementById('catch-phase').classList.add('show');
+  // Auto-hide after 30s if nobody catches
+  setTimeout(()=>{
+    if(catchActive){catchActive=false;document.getElementById('catch-phase').classList.remove('show');setTimeout(hideAll,400);}
+  },30000);
+}
+function timeoutGame(){
+  gameActive=false;document.getElementById('time-warning').classList.remove('show');revealPkm();
+  document.getElementById('nobody-ans').textContent=fmtName(curPkm.name)+'!';
+  document.getElementById('nobody-banner').classList.add('show');
+  sndReveal();setTimeout(hideAll,4000);
+}
+function hideAll(clear=true){
+  document.getElementById('guess-widget').classList.remove('visible');
+  document.getElementById('winner-banner').classList.remove('show');
+  document.getElementById('nobody-banner').classList.remove('show');
+  document.getElementById('time-warning').classList.remove('show');
+  document.getElementById('catch-phase').classList.remove('show');
+  if(clear){curPkm=null;gameActive=false;catchActive=false;}
+}
+function handleGuess(viewer,msg){
+  if(!gameActive||guessLock)return;
+  if(curAnswers.some(a=>normGuess(a)===normGuess(msg)))correctGuess(viewer);
+}
+
+// ═══════════════════════════════════════════════
+// CATCH ANIMATION
+// ═══════════════════════════════════════════════
+const BALLS={pokeball:{emoji:'🔴',rate:.45},greatball:{emoji:'🔵',rate:.65},ultraball:{emoji:'🟡',rate:.85},masterball:{emoji:'⚪',rate:1}};
+async function doCatch(viewer,ballType){
+  if(!catchActive||!curPkm)return;
+  catchActive=false;document.getElementById('catch-phase').classList.remove('show');
+  const ball=BALLS[ballType]||BALLS.pokeball;
+  const success=ballType==='masterball'||Math.random()<ball.rate;
+  const ca=document.getElementById('catch-anim');ca.style.display='block';ca.innerHTML='';
+  const bel=document.createElement('div');bel.className='ball-throw';bel.textContent=ball.emoji;ca.appendChild(bel);
+  await delay(900);
+  bel.style.animation='none';bel.style.position='absolute';bel.style.bottom='350px';bel.style.left='760px';bel.style.fontSize='55px';
+  if(success){
+    bel.style.animation='shakeBall .4s ease-in-out,shakeBall .4s .5s ease-in-out,shakeBall .4s 1s ease-in-out';
+    sndCatch();await delay(1600);
+    const res=document.createElement('div');res.className='catch-result';
+    res.textContent=`${viewer} CAUGHT ${fmtName(curPkm.name).toUpperCase()}!`;ca.appendChild(res);
+    addCatch(viewer,curPkm.id);
+    caughtLog.unshift({id:curPkm.id,name:curPkm.name,sprite:curPkm.sprite,caughtBy:viewer,time:new Date().toISOString()});
+    if(caughtLog.length>200)caughtLog=caughtLog.slice(0,200);saveAll();
+    showNotif('GOTCHA! 🎉',viewer+' caught '+fmtName(curPkm.name)+'! Use !battle @user to fight!','#2ecc71',5000);
+    confetti();await delay(3000);
+  }else{
+    sndEscape();bel.style.animation='shakeBall .3s ease-in-out';await delay(500);
+    const res=document.createElement('div');res.className='catch-result';res.style.color='#e74c3c';
+    res.textContent=fmtName(curPkm.name).toUpperCase()+' BROKE FREE!';ca.appendChild(res);
+    await delay(2500);
+  }
+  ca.style.display='none';ca.innerHTML='';setTimeout(hideAll,500);
+}
+
+// ═══════════════════════════════════════════════
+// BATTLE SYSTEM
+// ═══════════════════════════════════════════════
+let battleActive=false;
+let pendingChallenge=null; // {challenger, target, pkmChallenger, pkmTarget}
+let battle={
+  p1:{name:'',trainer:'',pkm:null,hp:0,maxHp:0,defending:false},
+  p2:{name:'',trainer:'',pkm:null,hp:0,maxHp:0,defending:false},
+  turn:'p1', // whose turn (p1=challenger/viewer, p2=opponent)
+  p1IsHuman:true, // p1 controlled by chat
+  p2IsHuman:false,// p2 AI or human
+  waitingForMove:false
+};
+
+function calcHP(stats){return Math.floor(stats.hp*0.8+stats.def*0.2+100);}
+function calcAtk(stats){return Math.floor(stats.atk*0.7+stats.spe*0.3);}
+function calcSpa(stats){return Math.floor(stats.spa*0.8+stats.spd*0.2);}
+
+async function initiateBattle(challengerName, targetName){
+  // Get challenger's pokedex
+  const p1dex=getPokedex(challengerName);
+  if(!p1dex.length){showNotif('NO POKEMON!',challengerName+" hasn't caught any Pokemon yet!",'#e74c3c');return;}
+
+  let p2dex;
+  const vsStreamer=targetName.toLowerCase()===STREAMER_NAME.toLowerCase();
+  if(vsStreamer){
+    // Pick random pokemon for streamer
+    p2dex=null;
+  }else{
+    p2dex=getPokedex(targetName);
+    if(!p2dex.length){showNotif('NO POKEMON!',targetName+" hasn't caught any Pokemon yet!",'#e74c3c');return;}
+  }
+
+  // Show challenge notification
+  const msg=challengerName+' challenges '+targetName+' to a battle!';
+  document.getElementById('chal-msg').textContent=msg;
+
+  if(vsStreamer||p2dex===null){
+    document.getElementById('chal-hint').textContent='Streamer: accept with !accept or decline with !decline';
+  }else{
+    document.getElementById('chal-hint').textContent=targetName+': type !accept or !decline';
+  }
+  document.getElementById('challenge-notif').classList.add('show');
+
+  pendingChallenge={challenger:challengerName,target:targetName,vsStreamer};
+  showNotif('⚔️ BATTLE CHALLENGE!',msg,'#9b59b6',10000);
+
+  // Auto-timeout challenge after 30s
+  setTimeout(()=>{
+    if(pendingChallenge){
+      pendingChallenge=null;
+      document.getElementById('challenge-notif').classList.remove('show');
+      showNotif('CHALLENGE EXPIRED',challengerName+"'s challenge timed out",'#888');
+    }
+  },30000);
+}
+
+async function startBattle(challenger,target,vsStreamer){
+  pendingChallenge=null;
+  document.getElementById('challenge-notif').classList.remove('show');
+  // Hide catch phase if it's showing — battle takes that spot
+  catchActive=false;
+  document.getElementById('catch-phase').classList.remove('show');
+  battleActive=true;
+
+  // Pick pokemon
+  const p1dex=getPokedex(challenger);
+  const p1id=p1dex[Math.floor(Math.random()*p1dex.length)];
+  let p2id;
+  if(vsStreamer||!getPokedex(target).length){
+    p2id=Math.floor(Math.random()*CFG.totalPkm)+1;
+  }else{
+    const p2dex=getPokedex(target);
+    p2id=p2dex[Math.floor(Math.random()*p2dex.length)];
+  }
+
+  setBattleMsg('Loading battle data...');
+  const [pkm1,pkm2]=await Promise.all([fetchPkm(p1id),fetchPkm(p2id)]);
+  if(!pkm1||!pkm2){battleActive=false;showNotif('ERROR','Failed to load battle data','#e74c3c');return;}
+
+  // Setup battle state
+  battle.p1={name:fmtName(pkm1.name),trainer:challenger,pkm:pkm1,hp:calcHP(pkm1.stats),maxHp:calcHP(pkm1.stats),defending:false};
+  battle.p2={name:fmtName(pkm2.name),trainer:target,pkm:pkm2,hp:calcHP(pkm2.stats),maxHp:calcHP(pkm2.stats),defending:false};
+  battle.turn='p1';
+  battle.p1IsHuman=true;
+  battle.p2IsHuman=!vsStreamer;
+  battle.waitingForMove=false;
+
+  // Set sprites
+  document.getElementById('p1-sprite').src=pkm1.sprite;
+  document.getElementById('p2-sprite').src=pkm2.spriteBack||pkm2.sprite;
+  document.getElementById('p1-trainer').textContent=challenger.toUpperCase();
+  document.getElementById('p2-trainer').textContent=target.toUpperCase();
+  document.getElementById('p1-name').textContent=fmtName(pkm1.name).toUpperCase();
+  document.getElementById('p2-name').textContent=fmtName(pkm2.name).toUpperCase();
+  document.getElementById('p1-types').innerHTML=pkm1.types.map(t=>`<span class="type-pip type-${t}">${t}</span>`).join('');
+  document.getElementById('p2-types').innerHTML=pkm2.types.map(t=>`<span class="type-pip type-${t}">${t}</span>`).join('');
+  updateHPBars();
+
+  // Show battle screen
+  document.getElementById('battle-result').classList.remove('show');
+  document.getElementById('battle-screen').classList.add('show');
+  hideAll(false);
+
+  await delay(500);
+  setBattleMsg(`${challenger}'s ${fmtName(pkm1.name)} vs ${target}'s ${fmtName(pkm2.name)}! LET THE BATTLE BEGIN!`);
+  await delay(2000);
+  promptNextTurn();
+}
+
+function updateHPBars(){
+  ['p1','p2'].forEach(p=>{
+    const pct=Math.max(0,(battle[p].hp/battle[p].maxHp)*100);
+    const bar=document.getElementById(p+'-hp-bar');
+    bar.style.width=pct+'%';
+    bar.className='hp-bar '+(pct>50?'high':pct>20?'mid':'low');
+    document.getElementById(p+'-hp-num').textContent=Math.max(0,battle[p].hp)+'/'+battle[p].maxHp;
+  });
+}
+
+function promptNextTurn(){
+  if(!battleActive)return;
+  const t=battle.turn;
+  const trainer=battle[t].trainer;
+  const pkm=battle[t].name;
+  battle.waitingForMove=true;
+  battle[t].defending=false;
+
+  if(t==='p1'){
+    setBattleMsg(`${trainer}'s turn! What will ${pkm} do?`);
+    document.getElementById('battle-turn-info').textContent=trainer.toUpperCase()+': type !attack  !special  !defend in chat';
+    setMoveBtns(true);
+  }else{
+    setMoveBtns(false);
+    if(!battle.p2IsHuman){
+      // AI move
+      setTimeout(()=>{ if(battleActive) executeAIMove(); },1500);
+      setBattleMsg(`${trainer}'s ${pkm} is choosing a move...`);
+    }else{
+      setBattleMsg(`${trainer}'s turn! What will ${pkm} do?`);
+      document.getElementById('battle-turn-info').textContent=trainer.toUpperCase()+': type !attack  !special  !defend in chat';
+    }
+  }
+}
+
+function setMoveBtns(enabled){
+  ['btn-attack','btn-special','btn-defend'].forEach(id=>{
+    document.getElementById(id).disabled=!enabled;
+  });
+}
+
+async function executeMove(attacker,defender,moveType){
+  if(!battleActive||!battle.waitingForMove)return;
+  battle.waitingForMove=false;
+  setMoveBtns(false);
+
+  const atkData=battle[attacker];
+  const defData=battle[defender];
+  const atkPkm=atkData.pkm;
+
+  let dmg=0,msg='';
+
+  if(moveType==='defend'){
+    atkData.defending=true;
+    sndDefend();
+    document.getElementById(attacker+'-sprite').classList.add('defending');
+    setTimeout(()=>document.getElementById(attacker+'-sprite').classList.remove('defending'),700);
+    msg=`${atkData.trainer}'s ${atkData.name} braced for impact! DEF UP!`;
+    setBattleMsg(msg);
+    await delay(1500);
+  }else{
+    // Calc damage
+    const baseAtk=moveType==='attack'?calcAtk(atkPkm.stats):calcSpa(atkPkm.stats);
+    const defMult=defData.defending?0.4:1;
+    const randMult=0.85+Math.random()*.3;
+    const crit=Math.random()<.1;
+    dmg=Math.max(1,Math.floor(baseAtk*randMult*(crit?1.5:1)*defMult));
+
+    // Animate
+    document.getElementById(attacker+'-sprite').classList.add('attacking');
+    await delay(350);
+    document.getElementById(attacker+'-sprite').classList.remove('attacking');
+    document.getElementById(defender+'-sprite').classList.add('attacked');
+    if(crit)sndCrit();else sndHit();
+    await delay(300);
+    document.getElementById(defender+'-sprite').classList.remove('attacked');
+
+    defData.hp=Math.max(0,defData.hp-dmg);
+    updateHPBars();
+
+    const moveLabel=moveType==='attack'?'ATTACK':'SPECIAL MOVE';
+    msg=`${atkData.trainer}'s ${atkData.name} used ${moveLabel}! ${crit?'CRITICAL HIT! ':''}${fmtName(defData.pkm.name)} took ${dmg} damage!`;
+    if(defData.defending)msg+=' (blocked some damage)';
+    setBattleMsg(msg);
+    defData.defending=false;
+    await delay(1800);
+  }
+
+  // Check faint
+  if(battle[defender].hp<=0){
+    await endBattle(attacker,defender);
+    return;
+  }
+
+  // Switch turns
+  battle.turn=battle.turn==='p1'?'p2':'p1';
+  promptNextTurn();
+}
+
+function executeAIMove(){
+  // Simple AI: prefer special if spa>atk, defend if low HP
+  const hpPct=battle.p2.hp/battle.p2.maxHp;
+  const r=Math.random();
+  let move;
+  if(hpPct<.25&&r<.35)move='defend';
+  else if(battle.p2.pkm.stats.spa>battle.p2.pkm.stats.atk)move=r<.6?'special':'attack';
+  else move=r<.6?'attack':'special';
+  executeMove('p2','p1',move);
+}
+
+async function endBattle(winner,loser){
+  battleActive=false;
+  const winData=battle[winner];
+  const loseData=battle[loser];
+  document.getElementById(loser+'-sprite').style.opacity='.2';
+  setBattleMsg(`${loseData.name} FAINTED! ${winData.trainer} WINS!`);
+  sndBattleWin();confetti();
+  addWin(winData.trainer);
+  await delay(1000);
+  document.getElementById('result-spr').src=winData.pkm.sprite;
+  document.getElementById('result-title').textContent=winData.trainer.toUpperCase()+' WINS!';
+  document.getElementById('result-sub').textContent=winData.name.toUpperCase()+' IS VICTORIOUS!';
+  document.getElementById('battle-result').classList.add('show');
+  showNotif('BATTLE OVER!',winData.trainer+' won with '+winData.name+'!','#FFD700',5000);
+  setTimeout(()=>{
+    const bs=document.getElementById('battle-screen');
+    bs.style.transition='opacity .6s,transform .6s';
+    bs.style.opacity='0';bs.style.transform='translateY(20px) scale(0.95)';
+    setTimeout(()=>{
+      bs.classList.remove('show');
+      bs.style.cssText='';
+      document.getElementById('battle-result').classList.remove('show');
+      document.getElementById(loser+'-sprite').style.opacity='1';
+      saveAll();
+    },650);
+  },5000);
+}
+
+function setBattleMsg(msg){document.getElementById('battle-msg').textContent=msg;}
+
+// ═══════════════════════════════════════════════
+// MOVE BUTTONS (for streamer to click)
+// ═══════════════════════════════════════════════
+function playerMove(type){
+  if(!battleActive||!battle.waitingForMove)return;
+  const t=battle.turn;
+  const opp=t==='p1'?'p2':'p1';
+  executeMove(t,opp,type);
+}
+
+// ═══════════════════════════════════════════════
+// CHAT COMMAND HANDLER
+// ═══════════════════════════════════════════════
+function handleChat(viewer,msg,isMod){
+  const m=msg.trim().toLowerCase();
+
+  // MOD/STREAMER only: start game
+  if((isMod||viewer.toLowerCase()===STREAMER_NAME.toLowerCase())&&m==='!startpokemon'){
+    startGame();return;
+  }
+
+  // Battle commands
+  if(m.startsWith('!battle ')){
+    const target=m.split('!battle ')[1].replace('@','').trim();
+    if(target&&target!==viewer.toLowerCase()) initiateBattle(viewer,target);
+    return;
+  }
+  if(m==='!accept'&&pendingChallenge){
+    const isTarget=viewer.toLowerCase()===pendingChallenge.target.toLowerCase();
+    const isStreamer=viewer.toLowerCase()===STREAMER_NAME.toLowerCase()&&pendingChallenge.vsStreamer;
+    if(isTarget||isStreamer||isMod){
+      startBattle(pendingChallenge.challenger,pendingChallenge.target,pendingChallenge.vsStreamer);
+    }return;
+  }
+  if(m==='!decline'&&pendingChallenge){
+    const isTarget=viewer.toLowerCase()===pendingChallenge.target.toLowerCase()||isMod;
+    if(isTarget){
+      showNotif('DECLINED',pendingChallenge.target+' declined the battle!','#e74c3c');
+      pendingChallenge=null;document.getElementById('challenge-notif').classList.remove('show');
+    }return;
+  }
+
+  // Battle moves from chat
+  if(battleActive&&battle.waitingForMove){
+    const t=battle.turn;
+    const isP1=viewer.toLowerCase()===battle.p1.trainer.toLowerCase()&&t==='p1';
+    const isP2=battle.p2IsHuman&&viewer.toLowerCase()===battle.p2.trainer.toLowerCase()&&t==='p2';
+    if(isP1||isP2){
+      const opp=t==='p1'?'p2':'p1';
+      if(m==='!attack')executeMove(t,opp,'attack');
+      else if(m==='!special')executeMove(t,opp,'special');
+      else if(m==='!defend')executeMove(t,opp,'defend');
+      return;
+    }
+  }
+
+  // Guess
+  handleGuess(viewer,msg);
+}
+
+// ═══════════════════════════════════════════════
+// STREAMER.BOT WEBSOCKET
+// ═══════════════════════════════════════════════
+function connectSB(){
+  try{
+    const ws=new WebSocket(`ws://localhost:${CFG.sbPort}`);
+    ws.onopen=()=>console.log('[Pokemon] SB connected ✓');
+    ws.onmessage=(e)=>{
+      try{
+        const d=JSON.parse(e.data);
+        const src=d?.event?.source,type=d?.event?.type;
+        const user=d?.data?.displayName||d?.data?.user||'Viewer';
+        const isMod=d?.data?.isModerator||d?.data?.mod||false;
+
+        // Channel point redeems (balls)
+        if(type==='Custom'&&src==='ThrowPokeball')doCatch(user,'pokeball');
+        if(type==='Custom'&&src==='ThrowGreatball')doCatch(user,'greatball');
+        if(type==='Custom'&&src==='ThrowUltraball')doCatch(user,'ultraball');
+        if(type==='Custom'&&src==='ThrowMasterball')doCatch(user,'masterball');
+
+        // Chat messages
+        if(type==='ChatMessage'||(src==='Twitch'&&d?.data?.message)){
+          handleChat(user,d?.data?.message||'',isMod);
+        }
+      }catch(err){}
+    };
+    ws.onclose=()=>setTimeout(connectSB,5000);
+  }catch(e){setTimeout(connectSB,5000);}
+}
+connectSB();
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ═══════════════════════════════════════════════
+// KEYBOARD TESTING
+// SPACE=start game  G=correct guess  C=catch  B=start test battle
+// Arrow keys = attack/special/defend during battle
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();startGame();}
+  if(e.code==='KeyG'&&gameActive)correctGuess('TestViewer');
+  if(e.code==='KeyC'&&catchActive)doCatch('TestViewer','pokeball');
+  if(e.code==='KeyB')initiateBattle('Viewer1','Viewer2');
+  if(e.code==='KeyA'&&battleActive&&battle.waitingForMove)playerMove('attack');
+  if(e.code==='KeyS'&&battleActive&&battle.waitingForMove)playerMove('special');
+  if(e.code==='KeyD'&&battleActive&&battle.waitingForMove)playerMove('defend');
+  // Test accept battle
+  if(e.code==='KeyX'&&pendingChallenge)startBattle(pendingChallenge.challenger,pendingChallenge.target,pendingChallenge.vsStreamer);
+});
+
+renderLB();
+</script>
+</body>
+</html>
