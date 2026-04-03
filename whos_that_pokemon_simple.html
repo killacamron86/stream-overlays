@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Whos That Pokemon</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:transparent; overflow:hidden; font-family:'Courier New',monospace; }
+
+#widget {
+  position:fixed;
+  top:20px;
+  right:20px;
+  width:260px;
+  opacity:0;
+  transform:translateY(-15px);
+  transition:opacity .4s, transform .4s;
+  pointer-events:none;
+  z-index:100;
+}
+#widget.show { opacity:1; transform:translateY(0); }
+
+.box {
+  background:#1a1a2e;
+  border:4px solid #FFD700;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:0 0 0 2px #b8860b;
+}
+
+.top-bar {
+  background:#FFD700;
+  margin:-10px -10px 10px;
+  border-radius:8px 8px 0 0;
+  padding:6px 10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.top-bar span { font-size:9px; color:#1a1a2e; font-weight:bold; letter-spacing:1px; }
+.dot { width:8px; height:8px; border-radius:50%; background:#e74c3c; animation:blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.pkm-box {
+  background:#0d0d1a;
+  border-radius:8px;
+  height:140px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:8px;
+  position:relative;
+  border:2px solid #2a2a4a;
+  overflow:hidden;
+}
+.pkm-box::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.1) 2px,rgba(0,0,0,.1) 4px);
+  pointer-events:none;
+}
+
+#pkm-img {
+  max-width:110px;
+  max-height:120px;
+  object-fit:contain;
+  filter:brightness(0);
+  transition:filter .8s;
+  image-rendering:pixelated;
+  position:relative;
+  z-index:2;
+}
+#pkm-img.show { filter:brightness(1) drop-shadow(0 0 8px #FFD700); }
+
+#gen-tag {
+  position:absolute;
+  top:6px; right:6px;
+  background:#FFD700;
+  color:#1a1a2e;
+  font-size:6px;
+  padding:2px 5px;
+  border-radius:3px;
+  z-index:3;
+  font-weight:bold;
+}
+
+.timer-bg {
+  background:#0d0d1a;
+  border:2px solid #2a2a4a;
+  border-radius:4px;
+  height:10px;
+  overflow:hidden;
+  margin-bottom:6px;
+}
+#timer-fill {
+  height:100%;
+  width:100%;
+  background:linear-gradient(90deg,#2ecc71,#FFD700,#e74c3c);
+  border-radius:2px;
+  transition:width 1s linear;
+}
+
+.hint { font-size:7px; color:#aaa; text-align:center; margin-bottom:4px; }
+#name-display { font-size:10px; color:#FFD700; text-align:center; letter-spacing:2px; text-shadow:2px 2px 0 #b8860b; min-height:14px; }
+
+/* winner */
+#winner {
+  position:fixed;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  z-index:200;
+  text-align:center;
+  pointer-events:none;
+  transition:transform .3s cubic-bezier(.17,.67,.35,1.5);
+}
+#winner.show { transform:translate(-50%,-50%) scale(1); }
+.win-box {
+  background:#1a1a2e;
+  border:4px solid #FFD700;
+  border-radius:16px;
+  padding:20px 30px;
+  box-shadow:0 0 0 2px #b8860b;
+}
+.win-label { font-size:10px; color:#FFD700; margin-bottom:6px; }
+.win-name { font-size:18px; color:#fff; text-shadow:2px 2px 0 #e74c3c; margin-bottom:4px; animation:pop .5s infinite alternate; }
+@keyframes pop { from{transform:scale(1)} to{transform:scale(1.04)} }
+.win-pkm { font-size:8px; color:#FFD700; }
+.win-img { width:60px; height:60px; object-fit:contain; image-rendering:pixelated; margin:8px auto 0; display:block; filter:drop-shadow(0 0 8px #FFD700); animation:bob .4s infinite alternate; }
+@keyframes bob { from{transform:translateY(0)} to{transform:translateY(-5px)} }
+
+/* nobody */
+#nobody {
+  position:fixed;
+  top:20px; right:20px;
+  background:#1a1a2e;
+  border:3px solid #e74c3c;
+  border-radius:8px;
+  padding:8px 12px;
+  opacity:0;
+  transform:translateY(-10px);
+  transition:opacity .3s, transform .3s;
+  z-index:150;
+  pointer-events:none;
+}
+#nobody.show { opacity:1; transform:translateY(0); }
+.nb-label { font-size:6px; color:#e74c3c; }
+.nb-ans { font-size:8px; color:#FFD700; margin-top:3px; }
+
+#warn {
+  position:fixed;
+  top:8px; right:20px;
+  background:#e74c3c;
+  border-radius:6px;
+  padding:4px 10px;
+  font-size:6px;
+  color:#fff;
+  opacity:0;
+  transition:opacity .2s;
+  z-index:150;
+  pointer-events:none;
+}
+#warn.show { opacity:1; }
+
+/* notif */
+#notif {
+  position:fixed;
+  top:20px; left:20px;
+  background:#1a1a2e;
+  border:3px solid #2ecc71;
+  border-radius:8px;
+  padding:7px 12px;
+  opacity:0;
+  transform:translateY(-10px);
+  transition:opacity .3s, transform .3s;
+  z-index:200;
+  pointer-events:none;
+  max-width:340px;
+}
+#notif.show { opacity:1; transform:translateY(0); }
+.notif-top { font-size:5px; color:#2ecc71; letter-spacing:1px; }
+.notif-msg { font-size:7px; color:#FFD700; margin-top:3px; }
+
+/* confetti */
+.cp { position:fixed; top:-10px; z-index:999; pointer-events:none; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<div id="widget">
+  <div class="box">
+    <div class="top-bar">
+      <span>WHOS THAT POKEMON?</span>
+      <div class="dot"></div>
+    </div>
+    <div class="pkm-box">
+      <span id="gen-tag">GEN ?</span>
+      <img id="pkm-img" src="" alt="" />
+    </div>
+    <div class="timer-bg"><div id="timer-fill"></div></div>
+    <div class="hint">TYPE IN CHAT TO GUESS!</div>
+    <div id="name-display">??????????</div>
+  </div>
+</div>
+
+<div id="winner">
+  <div class="win-box">
+    <div class="win-label">CORRECT!</div>
+    <div class="win-name" id="win-name">VIEWER</div>
+    <div class="win-pkm" id="win-pkm">GOT IT!</div>
+    <img id="win-img" src="" class="win-img" />
+  </div>
+</div>
+
+<div id="nobody">
+  <div class="nb-label">NOBODY GOT IT! IT WAS...</div>
+  <div class="nb-ans" id="nb-ans"></div>
+</div>
+
+<div id="warn">5 SECONDS LEFT!</div>
+
+<div id="notif">
+  <div class="notif-top" id="notif-top">INFO</div>
+  <div class="notif-msg" id="notif-msg"></div>
+</div>
+
+<script>
+// ── CONFIG ──
+const GUESS_TIME = 20;
+const STREAMER  = 'STREAMER'; // change to your Twitch name
+const SB_PORT   = 7474;
+
+// ── STATE ──
+let pokemon = null;
+let answers = [];
+let timer   = null;
+let timeLeft = 0;
+let active  = false;
+let locked  = false;
+
+// ── POKEAPI ──
+async function getRandomPokemon() {
+  const id = Math.floor(Math.random() * 1025) + 1;
+  try {
+    const r = await fetch('https://pokeapi.co/api/v2/pokemon/' + id);
+    const d = await r.json();
+    const name = d.name;
+    const sprite = d.sprites.front_default;
+    const gen = genFromId(id);
+    return { id, name, sprite, gen, answers: variants(name) };
+  } catch(e) { return null; }
+}
+
+function genFromId(id) {
+  if(id<=151)return 1; if(id<=251)return 2; if(id<=386)return 3;
+  if(id<=493)return 4; if(id<=649)return 5; if(id<=721)return 6;
+  if(id<=809)return 7; if(id<=905)return 8; return 9;
+}
+
+function variants(n) {
+  const c = n.toLowerCase();
+  return [c, c.replace(/-/g,' '), c.replace(/-/g,''), c.replace(/-/g,'.')].filter((v,i,a)=>a.indexOf(v)===i);
+}
+
+function clean(s) { return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g,''); }
+function fmt(n) { return n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '); }
+
+// ── AUDIO ──
+let ac = null;
+function audio() { if(!ac) ac = new(window.AudioContext||window.webkitAudioContext)(); return ac; }
+function beep(notes, type='square', vol=.13, sp=.12) {
+  try {
+    const a = audio();
+    notes.forEach((f,i) => {
+      const o=a.createOscillator(), g=a.createGain();
+      o.connect(g); g.connect(a.destination);
+      o.type=type; o.frequency.value=f;
+      const t=a.currentTime+i*sp;
+      g.gain.setValueAtTime(vol,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+sp+.05);
+      o.start(t); o.stop(t+sp+.1);
+    });
+  } catch(e){}
+}
+const sndStart  = () => beep([261,329,392,523]);
+const sndWin    = () => beep([392,523,659,784,1047],'square',.18,.1);
+const sndReveal = () => beep([262,294,330,349,392,440,494,523],'square',.12,.07);
+const sndTick   = () => beep([440],'square',.06,.05);
+
+// ── CONFETTI ──
+const CC = ['#FFD700','#e74c3c','#3498db','#2ecc71','#9b59b6','#fff'];
+function confetti() {
+  for(let i=0;i<60;i++) setTimeout(()=>{
+    const e=document.createElement('div'); e.className='cp';
+    e.style.cssText=`left:${Math.random()*100}vw;background:${CC[Math.floor(Math.random()*CC.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;`;
+    document.body.appendChild(e);
+    e.animate([{transform:'translateY(0)',opacity:1},{transform:`translateY(${window.innerHeight}px) translateX(${(Math.random()-.5)*150}px) rotate(${Math.random()*720}deg)`,opacity:.4}],{duration:1500+Math.random()*1000}).onfinish=()=>e.remove();
+  }, i*25);
+}
+
+// ── NOTIF ──
+let nt = null;
+function showNotif(top, msg, color='#2ecc71', dur=3000) {
+  document.getElementById('notif-top').textContent = top;
+  document.getElementById('notif-msg').textContent = msg;
+  document.getElementById('notif').style.borderColor = color;
+  document.getElementById('notif').classList.add('show');
+  if(nt) clearTimeout(nt);
+  nt = setTimeout(()=>document.getElementById('notif').classList.remove('show'), dur);
+}
+
+// ── GAME ──
+async function startGame() {
+  if(active) return;
+  clearAll(false);
+  const pkm = await getRandomPokemon();
+  if(!pkm||!pkm.sprite) return;
+  pokemon=pkm; answers=pkm.answers; locked=false; active=true;
+
+  const img = document.getElementById('pkm-img');
+  img.src = pkm.sprite;
+  img.className = '';
+  img.style.filter = 'brightness(0)';
+  document.getElementById('gen-tag').textContent = 'GEN ' + pkm.gen;
+  document.getElementById('name-display').textContent = '??????????';
+  document.getElementById('widget').classList.add('show');
+  sndStart();
+
+  timeLeft = GUESS_TIME;
+  document.getElementById('timer-fill').style.width = '100%';
+  document.getElementById('timer-fill').style.transition = 'width 1s linear';
+
+  timer = setInterval(()=>{
+    timeLeft--;
+    document.getElementById('timer-fill').style.width = ((timeLeft/GUESS_TIME)*100) + '%';
+    if(timeLeft===5){ document.getElementById('warn').classList.add('show'); sndTick(); }
+    if(timeLeft<=3&&timeLeft>0) sndTick();
+    if(timeLeft<=0){ clearInterval(timer); timeout(); }
+  }, 1000);
+}
+
+function reveal() {
+  const img = document.getElementById('pkm-img');
+  img.style.filter = '';
+  img.classList.add('show');
+  document.getElementById('name-display').textContent = fmt(pokemon.name).toUpperCase();
+}
+
+function correct(viewer) {
+  if(!active||locked) return;
+  locked=true; active=false;
+  clearInterval(timer);
+  document.getElementById('warn').classList.remove('show');
+  reveal();
+  document.getElementById('win-name').textContent = viewer.toUpperCase();
+  document.getElementById('win-pkm').textContent = "IT'S " + fmt(pokemon.name).toUpperCase() + '!';
+  document.getElementById('win-img').src = pokemon.sprite;
+  document.getElementById('winner').classList.add('show');
+  sndWin(); confetti();
+  setTimeout(()=>{
+    document.getElementById('winner').classList.remove('show');
+    showNotif('CORRECT!', viewer + ' got it! Type !battle @user to challenge!', '#2ecc71', 4000);
+    setTimeout(clearAll, 1000);
+  }, 3000);
+}
+
+function timeout() {
+  active=false;
+  document.getElementById('warn').classList.remove('show');
+  reveal();
+  document.getElementById('nb-ans').textContent = fmt(pokemon.name) + '!';
+  document.getElementById('nobody').classList.add('show');
+  sndReveal();
+  setTimeout(clearAll, 4000);
+}
+
+function clearAll(reset=true) {
+  document.getElementById('widget').classList.remove('show');
+  document.getElementById('winner').classList.remove('show');
+  document.getElementById('nobody').classList.remove('show');
+  document.getElementById('warn').classList.remove('show');
+  if(reset){ pokemon=null; active=false; locked=false; }
+}
+
+function handleChat(viewer, msg, isMod) {
+  const m = msg.trim().toLowerCase();
+  // Mod/streamer starts game
+  if((isMod || viewer.toLowerCase()===STREAMER.toLowerCase()) && m==='!startpokemon'){
+    startGame(); return;
+  }
+  // Guess
+  if(active && !locked){
+    if(answers.some(a=>clean(a)===clean(m))) correct(viewer);
+  }
+}
+
+// ── STREAMER.BOT ──
+function connectSB() {
+  try {
+    const ws = new WebSocket('ws://localhost:' + SB_PORT);
+    ws.onopen = () => console.log('[Pokemon] Connected to Streamer.bot');
+    ws.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        const type = d?.event?.type;
+        const src  = d?.event?.source;
+        const user = d?.data?.displayName || d?.data?.user || 'Viewer';
+        const isMod = d?.data?.isModerator || false;
+        if(type==='ChatMessage' || (src==='Twitch' && d?.data?.message)){
+          handleChat(user, d?.data?.message||'', isMod);
+        }
+      } catch(err){}
+    };
+    ws.onclose = () => setTimeout(connectSB, 5000);
+  } catch(e) { setTimeout(connectSB, 5000); }
+}
+connectSB();
+
+// ── KEYBOARD TEST ──
+// SPACE = start, G = correct guess, T = timeout
+document.addEventListener('keydown', e => {
+  if(e.code==='Space'){ e.preventDefault(); startGame(); }
+  if(e.code==='KeyG' && active) correct('TestViewer');
+  if(e.code==='KeyT' && active){ clearInterval(timer); timeout(); }
+});
+</script>
+</body>
+</html>
