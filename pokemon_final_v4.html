@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stream Pokemon</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:transparent; overflow:hidden; font-family:'Arial Black','Arial',sans-serif; width:1920px; height:1080px; }
+
+/* ══ GUESS WIDGET — top right, 25% smaller ══ */
+#widget {
+  position:fixed;
+  top:20px;
+  right:20px;
+  width:465px;
+  opacity:0;
+  transform:translateY(-20px);
+  transition:opacity .5s, transform .5s cubic-bezier(.17,.67,.35,1.4);
+  pointer-events:none;
+  z-index:100;
+}
+#widget.show { opacity:1; transform:translateY(0); }
+
+.tv-frame {
+  background:#1565C0;
+  border:6px solid #FFD700;
+  border-radius:18px;
+  padding:0;
+  box-shadow:0 0 0 3px #FFF, 0 0 0 6px #FFD700, 0 10px 40px rgba(0,0,0,.8);
+  overflow:hidden;
+}
+
+.tv-top {
+  background:#FFD700;
+  padding:10px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:3px solid #FFF;
+}
+.tv-title { font-size:18px; color:#1a1a2e; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+.dot { width:12px; height:12px; border-radius:50%; background:#e74c3c; box-shadow:0 0 8px #e74c3c; animation:blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.pkm-area {
+  background:#2196F3;
+  height:480px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  border-bottom:3px solid #FFD700;
+  overflow:hidden;
+}
+.pkm-area::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse at center, rgba(255,255,255,.25) 0%, transparent 65%);
+  pointer-events:none;
+  z-index:1;
+}
+
+#pkm-img {
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  filter:brightness(0) invert(0);
+  transition:filter 1.2s;
+  image-rendering:pixelated;
+  position:absolute;
+  inset:-10%;
+  width:120%;
+  height:120%;
+  z-index:2;
+  transform:scale(2);
+}
+#pkm-img.revealed { filter:brightness(1) drop-shadow(0 0 25px #FFD700) drop-shadow(0 0 50px rgba(255,215,0,.4)); }
+
+#gen-badge {
+  position:absolute;
+  top:10px; left:10px;
+  background:#FFD700;
+  color:#1a1a2e;
+  font-size:11px;
+  padding:4px 10px;
+  border-radius:16px;
+  z-index:4;
+  font-weight:900;
+  border:2px solid #fff;
+}
+
+.pkm-bottom { background:#fff; padding:12px 16px; }
+.timer-wrap { margin-bottom:10px; }
+.timer-label { font-size:11px; color:#1565C0; margin-bottom:5px; letter-spacing:2px; font-weight:900; text-transform:uppercase; }
+.timer-bg { background:#e0e0e0; border:2px solid #1565C0; border-radius:16px; height:18px; overflow:hidden; }
+#timer-bar { height:100%; background:linear-gradient(90deg,#2ecc71,#FFD700,#e74c3c); border-radius:14px; width:100%; transition:width 1s linear; }
+.hint { font-size:12px; color:#1565C0; text-align:center; margin-bottom:6px; letter-spacing:2px; font-weight:900; text-transform:uppercase; }
+#pkm-name { font-size:22px; color:#1565C0; text-align:center; letter-spacing:4px; font-weight:900; min-height:28px; text-transform:uppercase; }
+
+/* ══ CATCH PHASE — bottom right, bright yellow ══ */
+#catch-phase {
+  position:fixed;
+  bottom:20px; right:20px;
+  width:440px;
+  background:#FFD700;
+  border:6px solid #1565C0;
+  border-radius:20px;
+  padding:0;
+  opacity:0;
+  transform:translateY(20px);
+  transition:opacity .4s, transform .4s cubic-bezier(.17,.67,.35,1.4);
+  z-index:790;
+  pointer-events:none;
+  box-shadow:0 0 0 3px #fff, 0 0 0 6px #1565C0, 0 8px 30px rgba(0,0,0,.6);
+  overflow:hidden;
+}
+#catch-phase.show { opacity:1; transform:translateY(0); }
+.catch-title { background:#1565C0; color:#FFD700; font-size:18px; text-align:center; padding:14px; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+.balls-row { display:flex; gap:10px; justify-content:center; padding:14px 10px 10px; }
+.ball-item { text-align:center; background:#fff; border-radius:14px; padding:10px 14px; border:3px solid #1565C0; }
+.ball-emoji { font-size:36px; display:block; }
+.ball-name { font-size:11px; color:#1565C0; margin-top:4px; font-weight:900; text-transform:uppercase; }
+.ball-rate { font-size:10px; color:#e74c3c; margin-top:2px; font-weight:700; }
+.catch-hint { font-size:13px; color:#1565C0; text-align:center; line-height:2; padding:8px 14px 14px; font-weight:700; }
+
+
+/* ══ CATCH ANIMATION ══ */
+#catch-anim { position:fixed; inset:0; pointer-events:none; z-index:500; display:none; }
+.ball-throw { position:absolute; font-size:70px; animation:throwBall .8s cubic-bezier(.25,.46,.45,.94) forwards; }
+@keyframes throwBall { from{bottom:200px;left:200px;transform:scale(.4) rotate(0)} to{bottom:450px;left:850px;transform:scale(1.4) rotate(720deg)} }
+@keyframes shakeBall { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-18deg)} 75%{transform:rotate(18deg)} }
+.catch-result { position:absolute; top:32%; left:50%; transform:translateX(-50%) scale(0); font-size:36px; color:#FFD700; -webkit-text-stroke:3px #000; white-space:nowrap; animation:popIn .4s .9s cubic-bezier(.17,.67,.35,1.5) forwards; }
+@keyframes popIn { to{transform:translateX(-50%) scale(1)} }
+
+/* ══ WINNER BANNER — bottom center ══ */
+#winner-banner {
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%) translateY(200px);
+  z-index:200;
+  text-align:center;
+  pointer-events:none;
+  transition:transform .4s cubic-bezier(.17,.67,.35,1.5);
+}
+#winner-banner.show { transform:translateX(-50%) translateY(0); }
+.win-box {
+  background:#FFD700;
+  border:8px solid #1565C0;
+  border-radius:24px;
+  padding:0;
+  box-shadow:0 0 0 4px #fff, 0 0 0 8px #1565C0, 0 20px 60px rgba(0,0,0,.8);
+  overflow:hidden;
+  min-width:500px;
+}
+.win-top { font-size:20px; color:#FFD700; letter-spacing:2px; background:#1565C0; padding:14px 20px; font-weight:900; text-transform:uppercase; }
+.win-name { font-size:36px; color:#1565C0; letter-spacing:3px; padding:14px 20px 4px; font-weight:900; animation:pulse .5s infinite alternate; text-transform:uppercase; }
+@keyframes pulse { from{transform:scale(1)} to{transform:scale(1.04)} }
+.win-pkm { font-size:16px; color:#1565C0; letter-spacing:2px; padding:0 20px 10px; font-weight:700; }
+.win-img { width:100px; height:100px; object-fit:contain; margin:0 auto 14px; display:block; image-rendering:pixelated; filter:drop-shadow(0 0 12px #1565C0); animation:bob .4s infinite alternate; }
+@keyframes bob { from{transform:translateY(0)} to{transform:translateY(-8px)} }
+
+/* ══ NOBODY BANNER ══ */
+#nobody-banner {
+  position:fixed;
+  top:20px; right:660px;
+  background:#e74c3c;
+  border:5px solid #fff;
+  border-radius:16px;
+  padding:0;
+  opacity:0;
+  transform:translateX(20px);
+  transition:opacity .3s, transform .3s;
+  z-index:150;
+  pointer-events:none;
+  overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+#nobody-banner.show { opacity:1; transform:translateX(0); }
+.nb-text { font-size:12px; color:#fff; letter-spacing:1px; padding:10px 16px 4px; font-weight:900; text-transform:uppercase; }
+.nb-ans { font-size:18px; color:#FFD700; padding:4px 16px 12px; font-weight:900; text-transform:uppercase; }
+
+#time-warning {
+  position:fixed;
+  top:8px; right:20px;
+  background:#e74c3c;
+  border:3px solid #fff;
+  border-radius:20px;
+  padding:8px 16px;
+  font-size:14px;
+  color:#fff;
+  opacity:0;
+  transition:opacity .2s;
+  z-index:150;
+  pointer-events:none;
+  letter-spacing:1px;
+}
+#time-warning.show { opacity:1; }
+
+/* ══ BATTLE SCREEN — bottom right ══ */
+#battle-screen {
+  position:fixed;
+  bottom:20px; right:20px;
+  width:580px;
+  height:380px;
+  background:#1a1a2e;
+  border:4px solid #FFD700;
+  border-radius:16px;
+  z-index:800;
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 0 0 2px #b8860b, 0 8px 40px rgba(0,0,0,.95);
+}
+#battle-screen.show { display:flex; }
+
+.battle-arena {
+  flex:1;
+  position:relative;
+  background:linear-gradient(180deg,#0a0a1a 0%,#1a1a2e 60%,#2a1a0e 100%);
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 20px;
+}
+.battle-arena::before {
+  content:'';
+  position:absolute;
+  bottom:70px; left:0; right:0;
+  height:4px;
+  background:linear-gradient(90deg,transparent,#FFD700,transparent);
+  opacity:.3;
+}
+
+.b-side { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+.b-side.right { align-items:flex-end; }
+
+.hp-card {
+  background:rgba(0,0,0,.8);
+  border:2px solid #FFD700;
+  border-radius:8px;
+  padding:8px 12px;
+  min-width:150px;
+}
+.hp-card.enemy { border-color:#e74c3c; }
+.hp-trainer { font-size:6px; color:#888; margin-bottom:2px; }
+.hp-name { font-size:9px; color:#FFD700; margin-bottom:3px; }
+.hp-name.enemy { color:#e74c3c; }
+.hp-bg { background:#0d0d1a; border-radius:3px; height:8px; overflow:hidden; border:1px solid #2a2a4a; margin-bottom:3px; }
+.hp-fill { height:100%; border-radius:2px; transition:width .6s ease; }
+.hp-fill.high { background:linear-gradient(90deg,#2ecc71,#27ae60); }
+.hp-fill.mid { background:linear-gradient(90deg,#f39c12,#e67e22); }
+.hp-fill.low { background:linear-gradient(90deg,#e74c3c,#c0392b); animation:hpBlink .5s infinite alternate; }
+@keyframes hpBlink { from{opacity:1} to{opacity:.5} }
+.hp-nums { font-size:6px; color:#aaa; text-align:right; }
+
+.b-sprite { width:110px; height:110px; object-fit:contain; image-rendering:pixelated; }
+.b-sprite.p1 { filter:drop-shadow(0 0 12px rgba(52,152,219,.7)); animation:idleL 1.5s ease-in-out infinite alternate; }
+.b-sprite.p2 { filter:drop-shadow(0 0 12px rgba(231,76,60,.7)); animation:idleR 1.5s ease-in-out infinite alternate; }
+@keyframes idleL { from{transform:translateY(0)} to{transform:translateY(-6px)} }
+@keyframes idleR { from{transform:translateY(-6px)} to{transform:translateY(0)} }
+.b-sprite.attacking { animation:atkAnim .6s ease-in-out!important; }
+@keyframes atkAnim { 0%{transform:translateX(0)} 35%{transform:translateX(60px) scale(1.1)} 65%{transform:translateX(-8px)} 100%{transform:translateX(0)} }
+.b-sprite.hit { animation:hitAnim .5s ease-in-out!important; }
+@keyframes hitAnim { 0%,100%{opacity:1} 30%,70%{opacity:.1;filter:brightness(4)} }
+.b-sprite.defend { animation:defAnim .5s ease-in-out!important; }
+@keyframes defAnim { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+.vs-text { font-size:20px; color:#FFD700; text-shadow:2px 2px 0 #b8860b; opacity:.6; }
+
+.battle-ui {
+  background:#0d0d1a;
+  border-top:3px solid #FFD700;
+  padding:8px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+.battle-msg {
+  background:#1a1a2e;
+  border:2px solid #2a2a4a;
+  border-radius:6px;
+  padding:6px 12px;
+  font-size:8px;
+  color:#fff;
+  min-height:24px;
+  letter-spacing:.5px;
+}
+.battle-moves { display:flex; gap:8px; justify-content:center; }
+.move-btn {
+  background:#1a1a2e;
+  border:2px solid #2a2a4a;
+  border-radius:8px;
+  padding:6px 16px;
+  font-family:'Courier New',monospace;
+  font-size:8px;
+  cursor:pointer;
+  transition:all .2s;
+  color:#fff;
+  min-width:110px;
+}
+.move-btn:hover:not(:disabled) { transform:translateY(-1px); }
+.move-btn:disabled { opacity:.35; cursor:not-allowed; }
+.move-btn.atk { border-color:#e74c3c; color:#e74c3c; }
+.move-btn.atk:hover:not(:disabled) { background:#2a0808; }
+.move-btn.spc { border-color:#3498db; color:#3498db; }
+.move-btn.spc:hover:not(:disabled) { background:#08142a; }
+.move-btn.def { border-color:#2ecc71; color:#2ecc71; }
+.move-btn.def:hover:not(:disabled) { background:#082a14; }
+.battle-info { font-size:6px; color:#FFD700; text-align:center; letter-spacing:.5px; }
+
+#battle-result {
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.9);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:10px;
+  z-index:900;
+}
+#battle-result.show { display:flex; }
+.result-title { font-size:22px; color:#FFD700; text-shadow:3px 3px 0 #b8860b; animation:pulse .6s infinite alternate; }
+.result-sub { font-size:9px; color:#fff; letter-spacing:2px; }
+.result-img { width:70px; height:70px; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 0 12px #FFD700); animation:bob .4s infinite alternate; }
+
+/* ══ CHALLENGE NOTIF — top left ══ */
+#challenge-notif {
+  position:fixed;
+  top:20px; left:20px;
+  background:#1a1a2e;
+  border:3px solid #9b59b6;
+  border-radius:12px;
+  padding:12px 16px;
+  opacity:0;
+  transform:translateY(-10px);
+  transition:opacity .3s, transform .3s;
+  z-index:300;
+  pointer-events:none;
+  width:300px;
+}
+#challenge-notif.show { opacity:1; transform:translateY(0); }
+.chal-title { font-size:8px; color:#9b59b6; margin-bottom:6px; letter-spacing:1px; }
+.chal-msg { font-size:9px; color:#fff; margin-bottom:6px; line-height:1.6; }
+.chal-hint { font-size:7px; color:#aaa; line-height:1.6; }
+
+/* ══ NOTIFICATION — top left, bright ══ */
+#notif {
+  position:fixed;
+  top:20px; left:20px;
+  background:#FFD700;
+  border:5px solid #1565C0;
+  border-radius:16px;
+  padding:0;
+  opacity:0;
+  transform:translateY(-10px);
+  transition:opacity .3s, transform .3s;
+  z-index:200;
+  pointer-events:none;
+  max-width:500px;
+  overflow:hidden;
+  box-shadow:0 0 0 3px #fff, 0 0 0 6px #1565C0, 0 8px 30px rgba(0,0,0,.5);
+}
+#notif.show { opacity:1; transform:translateY(0); }
+.notif-top { font-size:13px; color:#FFD700; letter-spacing:2px; font-weight:900; background:#1565C0; padding:10px 16px; text-transform:uppercase; }
+.notif-msg { font-size:14px; color:#1565C0; padding:10px 16px; line-height:1.6; font-weight:700; background:#FFD700; }
+
+/* ══ STATUS ══ */
+#status {
+  position:fixed;
+  bottom:8px; left:8px;
+  font-size:11px;
+  padding:6px 14px;
+  border-radius:20px;
+  z-index:999;
+  pointer-events:none;
+  transition:opacity 1s;
+  font-weight:900;
+  border:3px solid #fff;
+}
+#status.connected { background:#2ecc71; color:#fff; }
+#status.disconnected { background:#e74c3c; color:#fff; }
+#status.connecting { background:#f39c12; color:#fff; }
+
+/* confetti */
+.cp { position:fixed; top:-10px; z-index:999; pointer-events:none; border-radius:2px; }
+
+/* type badges */
+.type-normal{background:#A8A878} .type-fire{background:#F08030} .type-water{background:#6890F0}
+.type-electric{background:#F8D030;color:#000!important} .type-grass{background:#78C850}
+.type-ice{background:#98D8D8;color:#000!important} .type-fighting{background:#C03028}
+.type-poison{background:#A040A0} .type-ground{background:#E0C068;color:#000!important}
+.type-flying{background:#A890F0} .type-psychic{background:#F85888} .type-bug{background:#A8B820}
+.type-rock{background:#B8A038} .type-ghost{background:#705898} .type-dragon{background:#7038F8}
+.type-dark{background:#705848} .type-steel{background:#B8B8D0;color:#000!important} .type-fairy{background:#EE99AC}
+.type-pip { font-size:6px; padding:2px 5px; border-radius:3px; color:#fff; display:inline-block; margin-right:2px; }
+</style>
+</head>
+<body>
+
+<!-- GUESS WIDGET -->
+<div id="widget">
+  <div class="tv-frame">
+    <div class="tv-top">
+      <span class="tv-title">WHO'S THAT POKEMON?</span>
+      <div class="dot"></div>
+    </div>
+    <div class="pkm-area">
+      <span id="gen-badge">GEN ?</span>
+      <img id="pkm-img" src="" alt="" />
+    </div>
+    <div class="pkm-bottom">
+      <div class="timer-wrap">
+        <div class="timer-label">⏱ TIME REMAINING</div>
+        <div class="timer-bg"><div id="timer-bar"></div></div>
+      </div>
+      <div class="hint">💬 TYPE IN CHAT TO GUESS!</div>
+      <div id="pkm-name">? ? ? ? ? ? ? ? ? ?</div>
+    </div>
+  </div>
+</div>
+
+<!-- CATCH PHASE -->
+<div id="catch-phase">
+  <div class="catch-title">⚡ CATCH IT! REDEEM A BALL! ⚡</div>
+  <div class="balls-row">
+    <div class="ball-item"><span class="ball-emoji">🔴</span><div class="ball-name">POKEBALL</div><div class="ball-rate">45%</div></div>
+    <div class="ball-item"><span class="ball-emoji">🔵</span><div class="ball-name">GREAT BALL</div><div class="ball-rate">65%</div></div>
+    <div class="ball-item"><span class="ball-emoji">🟡</span><div class="ball-name">ULTRA BALL</div><div class="ball-rate">85%</div></div>
+    <div class="ball-item"><span class="ball-emoji">⚪</span><div class="ball-name">MASTER BALL</div><div class="ball-rate">100%</div></div>
+  </div>
+  <div class="catch-hint">Type !pokeball !greatball !ultraball or !masterball<br>!stats = your balls | !pokedex = your collection<br><span id="catch-countdown" style="color:#FFD700;font-weight:bold;">30s remaining!</span></div>
+</div>
+
+<!-- CATCH ANIMATION -->
+<div id="catch-anim"></div>
+
+<!-- WINNER BANNER -->
+<div id="winner-banner">
+  <div class="win-box">
+    <div class="win-top">🎉 CORRECT! 🎉</div>
+    <div class="win-name" id="win-name">VIEWER</div>
+    <div class="win-pkm" id="win-pkm">GOT IT!</div>
+    <img id="win-img" src="" class="win-img" />
+  </div>
+</div>
+
+<!-- NOBODY / TIME -->
+<div id="nobody-banner"><div class="nb-text">NOBODY GOT IT! IT WAS...</div><div class="nb-ans" id="nb-ans"></div></div>
+<div id="time-warning">⚠ 5 SECONDS LEFT!</div>
+
+<!-- BATTLE SCREEN -->
+<div id="battle-screen">
+  <div class="battle-arena">
+    <div class="b-side">
+      <div class="hp-card" id="p1-card">
+        <div class="hp-trainer" id="p1-trainer">TRAINER</div>
+        <div class="hp-name" id="p1-name">POKEMON</div>
+        <div id="p1-types"></div>
+        <div class="hp-bg"><div class="hp-fill high" id="p1-hp" style="width:100%"></div></div>
+        <div class="hp-nums" id="p1-nums">100/100</div>
+      </div>
+      <img class="b-sprite p1" id="p1-img" src="" />
+    </div>
+    <div class="vs-text">VS</div>
+    <div class="b-side right">
+      <div class="hp-card enemy" id="p2-card">
+        <div class="hp-trainer" id="p2-trainer">TRAINER</div>
+        <div class="hp-name enemy" id="p2-name">POKEMON</div>
+        <div id="p2-types"></div>
+        <div class="hp-bg"><div class="hp-fill high" id="p2-hp" style="width:100%"></div></div>
+        <div class="hp-nums" id="p2-nums">100/100</div>
+      </div>
+      <img class="b-sprite p2" id="p2-img" src="" />
+    </div>
+    <div id="battle-result">
+      <img class="result-img" id="result-img" src="">
+      <div class="result-title" id="result-title">WINNER!</div>
+      <div class="result-sub" id="result-sub"></div>
+    </div>
+  </div>
+  <div class="battle-ui">
+    <div class="battle-msg" id="battle-msg">Battle starting...</div>
+    <div class="battle-moves">
+      <button class="move-btn atk" id="btn-atk" onclick="playerMove('attack')">⚔ ATTACK</button>
+      <button class="move-btn spc" id="btn-spc" onclick="playerMove('special')">✨ SPECIAL</button>
+      <button class="move-btn def" id="btn-def" onclick="playerMove('defend')">🛡 DEFEND</button>
+    </div>
+    <div class="battle-info" id="battle-info">Waiting...</div>
+  </div>
+</div>
+
+<!-- CHALLENGE NOTIF -->
+<div id="challenge-notif">
+  <div class="chal-title">⚔ BATTLE CHALLENGE!</div>
+  <div class="chal-msg" id="chal-msg"></div>
+  <div class="chal-hint" id="chal-hint"></div>
+</div>
+
+<!-- NOTIFICATION -->
+<div id="notif">
+  <div class="notif-top" id="notif-top">INFO</div>
+  <div class="notif-msg" id="notif-msg"></div>
+</div>
+
+<!-- STATUS -->
+<div id="status" class="connecting">Connecting...</div>
+
+<script>
+// ════════════════════════════════════════
+// !! CHANGE THESE TO YOUR INFO !!
+const CHANNEL  = 'killacamron86';  // Your Twitch channel name (lowercase)
+const STREAMER = 'killacamron86';  // Your Twitch username (lowercase)
+// ════════════════════════════════════════
+
+// ── STORAGE ──
+const DB = {
+  save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
+  load(k,d=null){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+};
+let leaderboard = DB.load('pkm_lb', {});
+let caughtLog   = DB.load('pkm_log', []);
+function saveAll(){ DB.save('pkm_lb',leaderboard); DB.save('pkm_log',caughtLog); }
+
+// ── PLAYER PROFILE ──
+function getOrCreate(u){
+  if(!leaderboard[u]) leaderboard[u]={
+    guessed:0, caught:0, wins:0, pokedex:[],
+    points:100, // everyone starts with 100 PokeCoins
+    balls:{pokeball:1,greatball:0,ultraball:0,masterball:0},
+    lastSeen:Date.now()
+  };
+  // Make sure old profiles have points & balls
+  if(!leaderboard[u].points) leaderboard[u].points=100;
+  if(!leaderboard[u].balls) leaderboard[u].balls={pokeball:1,greatball:0,ultraball:0,masterball:0};
+  return leaderboard[u];
+}
+
+// ── POINTS SYSTEM ──
+const POINTS = {
+  WATCH_PER_MIN:    5,   // earn 5 coins per minute in chat
+  GUESS_CORRECT:   50,   // earn 50 for guessing correctly
+  CATCH_SUCCESS:  100,   // earn 100 for catching
+  BATTLE_WIN:     200,   // earn 200 for winning a battle
+};
+
+// Shop prices
+const SHOP = {
+  pokeball:  { cost:50,   desc:'45% catch rate' },
+  greatball: { cost:150,  desc:'65% catch rate' },
+  ultraball: { cost:400,  desc:'85% catch rate' },
+  masterball:{ cost:2000, desc:'100% catch rate' },
+};
+
+function getPoints(u){ return getOrCreate(u).points||0; }
+function addPoints(u,amt){
+  const p=getOrCreate(u);
+  p.points=(p.points||0)+amt;
+  saveAll();
+}
+function spendPoints(u,amt){
+  const p=getOrCreate(u);
+  if((p.points||0)<amt) return false;
+  p.points-=amt; saveAll(); return true;
+}
+function addGuess(u){ const p=getOrCreate(u); p.guessed++; addPoints(u,POINTS.GUESS_CORRECT); saveAll(); }
+function addCatch(u,id){
+  const p=getOrCreate(u);
+  p.caught++;
+  if(!p.pokedex.includes(id)) p.pokedex.push(id);
+  addPoints(u,POINTS.CATCH_SUCCESS);
+  saveAll();
+}
+function addWin(u){ const p=getOrCreate(u); p.wins=(p.wins||0)+1; addPoints(u,POINTS.BATTLE_WIN); saveAll(); }
+function getPokedex(u){ return (leaderboard[u]&&leaderboard[u].pokedex)||[]; }
+
+// ── BALL INVENTORY ──
+function getBalls(u){ return getOrCreate(u).balls||{pokeball:1,greatball:0,ultraball:0,masterball:0}; }
+function hasBall(u,type){ return getBalls(u)[type]>0; }
+function useBall(u,type){
+  const p=getOrCreate(u);
+  if(!p.balls) p.balls={pokeball:1,greatball:0,ultraball:0,masterball:0};
+  if(p.balls[type]>0){ p.balls[type]--; saveAll(); return true; }
+  return false;
+}
+function giveBall(u,type,amt=1){
+  const p=getOrCreate(u);
+  if(!p.balls) p.balls={pokeball:1,greatball:0,ultraball:0,masterball:0};
+  p.balls[type]=(p.balls[type]||0)+amt;
+  saveAll();
+}
+function ensureStarterBall(u){
+  const p=getOrCreate(u);
+  if(!p.balls) p.balls={pokeball:1,greatball:0,ultraball:0,masterball:0};
+  saveAll();
+}
+
+// ── PASSIVE POINTS (earn points just by chatting) ──
+const chatters = new Map(); // track active chatters
+function markActive(u){
+  const p=getOrCreate(u);
+  const now=Date.now();
+  const last=chatters.get(u)||0;
+  // Give points every 2 minutes of activity
+  if(now-last>120000){
+    addPoints(u,POINTS.WATCH_PER_MIN*2);
+    chatters.set(u,now);
+  }
+}
+
+// ── GAME STATE ──
+const GUESS_TIME  = 30;
+const CATCH_TIME  = 30;
+let curPkm=null, curAnswers=[], timerInt=null, catchTimerInt=null, timeLeft=0;
+let gameActive=false, catchActive=false, battleActive=false;
+let guessLock=false, pendingChallenge=null;
+
+// ── POKEAPI ──
+async function fetchPkm(id){
+  try{
+    const r=await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+    const d=await r.json();
+    return{
+      id, name:d.name,
+      sprite:d.sprites.front_default,
+      spriteBack:d.sprites.back_default||d.sprites.front_default,
+      types:d.types.map(t=>t.type.name),
+      stats:{hp:d.stats[0].base_stat,atk:d.stats[1].base_stat,def:d.stats[2].base_stat,spa:d.stats[3].base_stat,spd:d.stats[4].base_stat,spe:d.stats[5].base_stat},
+      gen:genFromId(id),
+      answers:variants(d.name)
+    };
+  }catch(e){ return null; }
+}
+function genFromId(id){ if(id<=151)return 1; if(id<=251)return 2; if(id<=386)return 3; if(id<=493)return 4; if(id<=649)return 5; if(id<=721)return 6; if(id<=809)return 7; if(id<=905)return 8; return 9; }
+function variants(n){ const c=n.toLowerCase(); return[c,c.replace(/-/g,' '),c.replace(/-/g,''),c.replace(/-/g,'.')].filter((v,i,a)=>a.indexOf(v)===i); }
+function clean(s){ return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g,''); }
+function fmt(n){ return n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '); }
+
+// ── AUDIO ──
+let ac=null;
+function getAC(){ if(!ac) ac=new(window.AudioContext||window.webkitAudioContext)(); return ac; }
+function beep(notes,type='square',vol=.13,sp=.12){
+  try{ const a=getAC(); notes.forEach((f,i)=>{ const o=a.createOscillator(),g=a.createGain(); o.connect(g); g.connect(a.destination); o.type=type; o.frequency.value=f; const t=a.currentTime+i*sp; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+sp+.05); o.start(t); o.stop(t+sp+.1); }); }catch(e){}
+}
+const sndStart  = ()=>beep([261,329,392,523]);
+const sndWin    = ()=>beep([392,523,659,784,1047],'square',.18,.1);
+const sndReveal = ()=>beep([262,294,330,349,392,440,494,523],'square',.12,.07);
+const sndTick   = ()=>beep([440],'square',.06,.05);
+const sndHit    = ()=>beep([200,150],'sawtooth',.25,.1);
+const sndCrit   = ()=>beep([660,880,1100],'square',.2,.08);
+const sndCatch  = ()=>beep([300,250,200,150],'sawtooth',.2,.15);
+const sndEscape = ()=>beep([500,400,300],'square',.15,.12);
+const sndBattle = ()=>beep([392,494,659,784,988,1319],'square',.2,.09);
+const sndDefend = ()=>beep([330,294,262],'square',.15,.1);
+
+// ── CONFETTI ──
+const CC=['#FFD700','#e74c3c','#3498db','#2ecc71','#9b59b6','#fff'];
+function confetti(){ for(let i=0;i<70;i++) setTimeout(()=>{ const e=document.createElement('div'); e.className='cp'; e.style.cssText=`left:${Math.random()*100}vw;background:${CC[Math.floor(Math.random()*CC.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;`; document.body.appendChild(e); e.animate([{transform:'translateY(0)',opacity:1},{transform:`translateY(${window.innerHeight}px) translateX(${(Math.random()-.5)*200}px) rotate(${Math.random()*720}deg)`,opacity:.4}],{duration:1500+Math.random()*1500}).onfinish=()=>e.remove(); },i*25); }
+
+// ── NOTIF ──
+let nt=null;
+function showNotif(top,msg,color='#2ecc71',dur=3500){
+  document.getElementById('notif-top').textContent=top;
+  document.getElementById('notif-msg').textContent=msg;
+  document.getElementById('notif').style.borderColor=color;
+  document.getElementById('notif').classList.add('show');
+  if(nt) clearTimeout(nt);
+  nt=setTimeout(()=>document.getElementById('notif').classList.remove('show'),dur);
+}
+
+// ── GUESS GAME ──
+async function startGame(){
+  if(gameActive||battleActive) return;
+  hideAll(false);
+  showNotif('LOADING...','Getting a Pokemon...','#FFD700',3000);
+  const id=Math.floor(Math.random()*1025)+1;
+  const pkm=await fetchPkm(id);
+  if(!pkm||!pkm.sprite){ showNotif('ERROR','Could not load. Try again!','#e74c3c'); return; }
+  curPkm=pkm; curAnswers=pkm.answers; guessLock=false; gameActive=true;
+
+  const img=document.getElementById('pkm-img');
+  img.src=pkm.sprite; img.className=''; img.style.filter='brightness(0)';
+  document.getElementById('gen-badge').textContent='GEN '+pkm.gen;
+  document.getElementById('pkm-name').textContent='??????????';
+  document.getElementById('widget').classList.add('show');
+  sndStart();
+
+  timeLeft=GUESS_TIME;
+  document.getElementById('timer-bar').style.width='100%';
+  document.getElementById('timer-bar').style.transition='width 1s linear';
+
+  timerInt=setInterval(()=>{
+    timeLeft--;
+    document.getElementById('timer-bar').style.width=((timeLeft/GUESS_TIME)*100)+'%';
+    if(timeLeft===5){ document.getElementById('time-warning').classList.add('show'); sndTick(); }
+    if(timeLeft<=3&&timeLeft>0) sndTick();
+    if(timeLeft<=0){ clearInterval(timerInt); timeoutGame(); }
+  },1000);
+}
+
+function revealPkm(){
+  const img=document.getElementById('pkm-img');
+  img.style.filter=''; img.classList.add('revealed');
+  document.getElementById('pkm-name').textContent=fmt(curPkm.name).toUpperCase();
+}
+
+function correctGuess(viewer){
+  if(!gameActive||guessLock) return;
+  guessLock=true; gameActive=false; clearInterval(timerInt);
+  document.getElementById('time-warning').classList.remove('show');
+  revealPkm();
+  document.getElementById('win-name').textContent=viewer.toUpperCase();
+  document.getElementById('win-pkm').textContent="IT'S "+fmt(curPkm.name).toUpperCase()+'!';
+  document.getElementById('win-img').src=curPkm.sprite;
+  document.getElementById('winner-banner').classList.add('show');
+  addGuess(viewer); sndWin(); confetti();
+  setTimeout(()=>{
+    document.getElementById('winner-banner').classList.remove('show');
+    showCatchPhase();
+  },3000);
+}
+
+function showCatchPhase(){
+  if(battleActive) return;
+  catchActive=true;
+  let catchTimeLeft=CATCH_TIME;
+  document.getElementById('catch-phase').classList.add('show');
+  // Update catch hint with countdown
+  function updateCatchTimer(){
+    document.getElementById('catch-countdown').textContent=catchTimeLeft+'s remaining to catch!';
+  }
+  updateCatchTimer();
+  showNotif('CATCH TIME!','Type !pokeball !greatball !ultraball or !masterball — '+CATCH_TIME+'s to catch '+fmt(curPkm.name)+'!','#e74c3c',CATCH_TIME*1000);
+  catchTimerInt=setInterval(()=>{
+    catchTimeLeft--;
+    updateCatchTimer();
+    if(catchTimeLeft<=0){
+      clearInterval(catchTimerInt);
+      if(catchActive){ catchActive=false; document.getElementById('catch-phase').classList.remove('show'); setTimeout(hideAll,400); }
+    }
+  },1000);
+}
+
+function timeoutGame(){
+  gameActive=false;
+  document.getElementById('time-warning').classList.remove('show');
+  revealPkm();
+  document.getElementById('nb-ans').textContent=fmt(curPkm.name)+'!';
+  document.getElementById('nobody-banner').classList.add('show');
+  sndReveal();
+  setTimeout(hideAll,4000);
+}
+
+function hideAll(clear=true){
+  document.getElementById('widget').classList.remove('show');
+  document.getElementById('winner-banner').classList.remove('show');
+  document.getElementById('nobody-banner').classList.remove('show');
+  document.getElementById('time-warning').classList.remove('show');
+  document.getElementById('catch-phase').classList.remove('show');
+  if(catchTimerInt){ clearInterval(catchTimerInt); catchTimerInt=null; }
+  if(clear){ curPkm=null; gameActive=false; catchActive=false; guessLock=false; }
+}
+
+// ── CATCH SYSTEM ──
+const BALLS={ pokeball:{r:.45,e:'🔴'}, greatball:{r:.65,e:'🔵'}, ultraball:{r:.85,e:'🟡'}, masterball:{r:1,e:'⚪'} };
+
+async function doCatch(viewer,ballType){
+  if(!catchActive||!curPkm) return;
+  // Check inventory
+  ensureStarterBall(viewer);
+  if(!useBall(viewer,ballType)){
+    showNotif('NO BALLS!',viewer+' has no '+ballType+'! Type !stats to check.','#e74c3c',4000);
+    return;
+  }
+  catchActive=false;
+  if(catchTimerInt){ clearInterval(catchTimerInt); catchTimerInt=null; }
+  document.getElementById('catch-phase').classList.remove('show');
+  const ball=BALLS[ballType]||BALLS.pokeball;
+  const success=ballType==='masterball'||Math.random()<ball.r;
+  const ca=document.getElementById('catch-anim'); ca.style.display='block'; ca.innerHTML='';
+  const bel=document.createElement('div'); bel.className='ball-throw'; bel.textContent=ball.e; ca.appendChild(bel);
+  await delay(900);
+  bel.style.animation='none'; bel.style.cssText+=';position:absolute;bottom:430px;left:850px;font-size:70px;';
+  if(success){
+    bel.style.animation='shakeBall .4s ease-in-out,shakeBall .4s .5s ease-in-out,shakeBall .4s 1s ease-in-out';
+    sndCatch(); await delay(1600);
+    const res=document.createElement('div'); res.className='catch-result';
+    res.textContent=viewer.toUpperCase()+' CAUGHT '+fmt(curPkm.name).toUpperCase()+'!'; ca.appendChild(res);
+    addCatch(viewer,curPkm.id);
+    // Bonus: give 1 pokeball for catching successfully
+    giveBall(viewer,'pokeball',1);
+    caughtLog.unshift({id:curPkm.id,name:curPkm.name,sprite:curPkm.sprite,caughtBy:viewer,time:new Date().toISOString()});
+    if(caughtLog.length>200) caughtLog=caughtLog.slice(0,200); saveAll();
+    showNotif('GOTCHA!',viewer+' caught '+fmt(curPkm.name)+'! Type !battle @user to fight!','#2ecc71',5000);
+    confetti(); await delay(3000);
+  }else{
+    sndEscape(); bel.style.animation='shakeBall .3s ease-in-out'; await delay(500);
+    const res=document.createElement('div'); res.className='catch-result'; res.style.color='#e74c3c';
+    res.textContent=fmt(curPkm.name).toUpperCase()+' BROKE FREE!'; ca.appendChild(res); await delay(2500);
+  }
+  ca.style.display='none'; ca.innerHTML=''; setTimeout(hideAll,500);
+}
+
+// ── BATTLE SYSTEM ──
+let battle={ p1:{}, p2:{}, turn:'p1', p2IsHuman:false, waitingForMove:false };
+
+function calcHP(s){ return Math.floor(s.hp*.8+s.def*.2+100); }
+function calcAtk(s){ return Math.floor(s.atk*.7+s.spe*.3); }
+function calcSpa(s){ return Math.floor(s.spa*.8+s.spd*.2); }
+
+async function initBattle(challenger,target){
+  const p1dex=getPokedex(challenger);
+  if(!p1dex.length){ showNotif('NO POKEMON!',challenger+" has no caught Pokemon yet!",'#e74c3c'); return; }
+  const vsMe=target.toLowerCase()===STREAMER.toLowerCase();
+  if(!vsMe){
+    const p2dex=getPokedex(target);
+    if(!p2dex.length){ showNotif('NO POKEMON!',target+" has no caught Pokemon yet!",'#e74c3c'); return; }
+  }
+  const msg=challenger+' challenges '+target+' to a Pokemon battle!';
+  document.getElementById('chal-msg').textContent=msg;
+  document.getElementById('chal-hint').textContent=(vsMe?'Streamer':'@'+target)+': type !accept or !decline in chat';
+  document.getElementById('challenge-notif').classList.add('show');
+  pendingChallenge={challenger,target,vsMe};
+  showNotif('BATTLE CHALLENGE!',msg,'#9b59b6',10000);
+  setTimeout(()=>{ if(pendingChallenge){ pendingChallenge=null; document.getElementById('challenge-notif').classList.remove('show'); showNotif('EXPIRED',challenger+"'s challenge timed out",'#888'); } },30000);
+}
+
+async function startBattle(challenger,target,vsMe){
+  pendingChallenge=null;
+  document.getElementById('challenge-notif').classList.remove('show');
+  catchActive=false; document.getElementById('catch-phase').classList.remove('show');
+  battleActive=true;
+
+  const p1dex=getPokedex(challenger);
+  const p1id=p1dex[Math.floor(Math.random()*p1dex.length)];
+  let p2id;
+  if(vsMe||!getPokedex(target).length){ p2id=Math.floor(Math.random()*1025)+1; }
+  else{ const d=getPokedex(target); p2id=d[Math.floor(Math.random()*d.length)]; }
+
+  setBattleMsg('Loading battle...');
+  document.getElementById('battle-result').classList.remove('show');
+  document.getElementById('battle-screen').classList.add('show');
+
+  const [pkm1,pkm2]=await Promise.all([fetchPkm(p1id),fetchPkm(p2id)]);
+  if(!pkm1||!pkm2){ battleActive=false; document.getElementById('battle-screen').classList.remove('show'); showNotif('ERROR','Could not load battle!','#e74c3c'); return; }
+
+  battle.p1={name:fmt(pkm1.name),trainer:challenger,pkm:pkm1,hp:calcHP(pkm1.stats),maxHp:calcHP(pkm1.stats),defending:false};
+  battle.p2={name:fmt(pkm2.name),trainer:target,pkm:pkm2,hp:calcHP(pkm2.stats),maxHp:calcHP(pkm2.stats),defending:false};
+  battle.turn='p1'; battle.p2IsHuman=!vsMe; battle.waitingForMove=false;
+
+  document.getElementById('p1-img').src=pkm1.sprite;
+  document.getElementById('p2-img').src=pkm2.spriteBack||pkm2.sprite;
+  document.getElementById('p1-trainer').textContent=challenger.toUpperCase();
+  document.getElementById('p2-trainer').textContent=target.toUpperCase();
+  document.getElementById('p1-name').textContent=fmt(pkm1.name).toUpperCase();
+  document.getElementById('p2-name').textContent=fmt(pkm2.name).toUpperCase();
+  document.getElementById('p1-types').innerHTML=pkm1.types.map(t=>`<span class="type-pip type-${t}">${t}</span>`).join('');
+  document.getElementById('p2-types').innerHTML=pkm2.types.map(t=>`<span class="type-pip type-${t}">${t}</span>`).join('');
+  updateHP();
+  await delay(500);
+  setBattleMsg(`${challenger}'s ${fmt(pkm1.name)} vs ${target}'s ${fmt(pkm2.name)}! BATTLE START!`);
+  await delay(2000);
+  nextTurn();
+}
+
+function updateHP(){
+  ['p1','p2'].forEach(p=>{
+    const pct=Math.max(0,(battle[p].hp/battle[p].maxHp)*100);
+    const bar=document.getElementById(p+'-hp');
+    bar.style.width=pct+'%';
+    bar.className='hp-fill '+(pct>50?'high':pct>20?'mid':'low');
+    document.getElementById(p+'-nums').textContent=Math.max(0,battle[p].hp)+'/'+battle[p].maxHp;
+  });
+}
+
+function nextTurn(){
+  if(!battleActive) return;
+  const t=battle.turn;
+  battle[t].defending=false; battle.waitingForMove=true;
+  const trainer=battle[t].trainer, pkm=battle[t].name;
+  if(t==='p1'){
+    setBattleMsg(`${trainer}'s ${pkm} — choose a move!`);
+    document.getElementById('battle-info').textContent=trainer.toUpperCase()+': type !attack !special !defend in chat';
+    setBtns(true);
+  }else{
+    setBtns(false);
+    if(!battle.p2IsHuman){ setBattleMsg(`${trainer}'s ${pkm} is thinking...`); setTimeout(()=>{ if(battleActive) aiMove(); },1500); }
+    else{ setBattleMsg(`${trainer}'s ${pkm} — choose a move!`); document.getElementById('battle-info').textContent=trainer.toUpperCase()+': type !attack !special !defend'; }
+  }
+}
+
+function setBtns(on){ ['btn-atk','btn-spc','btn-def'].forEach(id=>document.getElementById(id).disabled=!on); }
+function setBattleMsg(m){ document.getElementById('battle-msg').textContent=m; }
+
+async function doMove(atk,def,type){
+  if(!battleActive||!battle.waitingForMove) return;
+  battle.waitingForMove=false; setBtns(false);
+  const A=battle[atk], D=battle[def];
+  if(type==='defend'){
+    A.defending=true; sndDefend();
+    document.getElementById(atk+'-img').classList.add('defend');
+    setTimeout(()=>document.getElementById(atk+'-img').classList.remove('defend'),600);
+    setBattleMsg(`${A.trainer}'s ${A.name} is defending! DEF UP!`);
+    await delay(1500);
+  }else{
+    const base=type==='attack'?calcAtk(A.pkm.stats):calcSpa(A.pkm.stats);
+    const defMult=D.defending?.4:1;
+    const rand=.85+Math.random()*.3;
+    const crit=Math.random()<.1;
+    const dmg=Math.max(1,Math.floor(base*rand*(crit?1.5:1)*defMult));
+    document.getElementById(atk+'-img').classList.add('attacking');
+    await delay(350);
+    document.getElementById(atk+'-img').classList.remove('attacking');
+    document.getElementById(def+'-img').classList.add('hit');
+    if(crit) sndCrit(); else sndHit();
+    await delay(300);
+    document.getElementById(def+'-img').classList.remove('hit');
+    D.hp=Math.max(0,D.hp-dmg); updateHP();
+    const moveLabel=type==='attack'?'ATTACK':'SPECIAL MOVE';
+    setBattleMsg(`${A.name} used ${moveLabel}!${crit?' CRITICAL HIT!':''} ${D.name} took ${dmg} damage!`);
+    D.defending=false;
+    await delay(1800);
+  }
+  if(battle[def].hp<=0){ await endBattle(atk,def); return; }
+  battle.turn=battle.turn==='p1'?'p2':'p1';
+  nextTurn();
+}
+
+function aiMove(){
+  const hpPct=battle.p2.hp/battle.p2.maxHp;
+  const r=Math.random();
+  let move;
+  if(hpPct<.25&&r<.35) move='defend';
+  else if(battle.p2.pkm.stats.spa>battle.p2.pkm.stats.atk) move=r<.6?'special':'attack';
+  else move=r<.6?'attack':'special';
+  doMove('p2','p1',move);
+}
+
+async function endBattle(winner,loser){
+  battleActive=false;
+  const W=battle[winner], L=battle[loser];
+  document.getElementById(loser+'-img').style.opacity='.15';
+  setBattleMsg(`${L.name} FAINTED! ${W.trainer} WINS THE BATTLE!`);
+  sndBattle(); confetti(); addWin(W.trainer);
+  await delay(1000);
+  document.getElementById('result-img').src=W.pkm.sprite;
+  document.getElementById('result-title').textContent=W.trainer.toUpperCase()+' WINS!';
+  document.getElementById('result-sub').textContent=W.name.toUpperCase()+' IS VICTORIOUS!';
+  document.getElementById('battle-result').classList.add('show');
+  showNotif('BATTLE OVER!',W.trainer+' won with '+W.name+'!','#FFD700',5000);
+  setTimeout(()=>{
+    const bs=document.getElementById('battle-screen');
+    bs.style.transition='opacity .6s, transform .6s';
+    bs.style.opacity='0'; bs.style.transform='translateY(20px)';
+    setTimeout(()=>{
+      bs.classList.remove('show');
+      bs.style.cssText='';
+      document.getElementById(loser+'-img').style.opacity='1';
+      document.getElementById('battle-result').classList.remove('show');
+    },650);
+  },5000);
+}
+
+function playerMove(type){ if(!battleActive||!battle.waitingForMove) return; const opp=battle.turn==='p1'?'p2':'p1'; doMove(battle.turn,opp,type); }
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ── TWITCH IRC CHAT CONNECTION ──
+let ws=null, reconnTimer=null;
+
+function setStatus(state,msg){
+  const el=document.getElementById('status');
+  el.className=state; el.textContent=msg;
+  if(state==='connected') setTimeout(()=>{ el.style.opacity='0'; },3000);
+  else el.style.opacity='1';
+}
+
+function connectTwitch(){
+  if(ws){ try{ ws.close(); }catch(e){} }
+  setStatus('connecting','Connecting to Twitch...');
+  ws=new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+  ws.onopen=()=>{
+    ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+    ws.send('PASS oauth:justinfan'+Math.floor(Math.random()*99999));
+    ws.send('NICK justinfan'+Math.floor(Math.random()*99999));
+    ws.send('JOIN #'+CHANNEL.toLowerCase());
+    setStatus('connected','Chat Connected!');
+  };
+  ws.onmessage=(e)=>{
+    const raw=e.data;
+    if(raw.includes('PING')){ ws.send('PONG :tmi.twitch.tv'); return; }
+    if(!raw.includes('PRIVMSG')) return;
+    try{
+      const userMatch=raw.match(/display-name=([^;]+)/);
+      const user=userMatch?userMatch[1]:(raw.match(/:(\w+)!/)?.[1]||'viewer');
+      const modMatch=raw.match(/mod=(\d)/);
+      const isMod=modMatch?modMatch[1]==='1':false;
+      const msgMatch=raw.match(/PRIVMSG #\w+ :(.+)/);
+      if(!msgMatch) return;
+      const msg=msgMatch[1].trim();
+      handleChat(user,msg,isMod);
+    }catch(err){}
+  };
+  ws.onerror=()=>setStatus('disconnected','Connection Error');
+  ws.onclose=()=>{
+    setStatus('disconnected','Reconnecting...');
+    if(reconnTimer) clearTimeout(reconnTimer);
+    reconnTimer=setTimeout(connectTwitch,5000);
+  };
+}
+
+function handleChat(user,msg,isMod){
+  const m=msg.trim().toLowerCase();
+  const isMe=user.toLowerCase()===STREAMER.toLowerCase();
+
+  // Track active chatters for passive points
+  markActive(user);
+
+  // ── COMMANDS ──
+
+  // Start game — mods and streamer only
+  if((isMod||isMe)&&m==='!startpokemon'){ startGame(); return; }
+
+  // Points balance
+  if(m==='!points'||m==='!coins'||m==='!balance'){
+    const pts=getPoints(user);
+    const balls=getBalls(user);
+    showNotif('🪙 '+user.toUpperCase()+"'S WALLET",
+      `PokeCoins: ${pts} 🪙 | 🔴${balls.pokeball} 🔵${balls.greatball} 🟡${balls.ultraball} ⚪${balls.masterball}`,
+      '#FFD700',6000);
+    return;
+  }
+
+  // Shop — show what's available
+  if(m==='!shop'||m==='!store'){
+    showNotif('🏪 POKESHOP',
+      `🔴 Pokeball = 50🪙 (45%) | 🔵 Greatball = 150🪙 (65%) | 🟡 Ultraball = 400🪙 (85%) | ⚪ Masterball = 2000🪙 (100%) — Type !buy pokeball to purchase!`,
+      '#9b59b6',8000);
+    return;
+  }
+
+  // Buy a ball — !buy pokeball / !buy greatball etc.
+  if(m.startsWith('!buy ')){
+    const ballType=m.replace('!buy ','').trim();
+    if(!SHOP[ballType]){ showNotif('UNKNOWN ITEM',`Type !shop to see what's available!`,'#e74c3c'); return; }
+    const cost=SHOP[ballType].cost;
+    const pts=getPoints(user);
+    if(pts<cost){
+      showNotif('NOT ENOUGH COINS!',`${user} needs ${cost}🪙 for a ${ballType}. You have ${pts}🪙. Earn more by chatting!`,'#e74c3c',5000);
+    }else{
+      spendPoints(user,cost);
+      giveBall(user,ballType,1);
+      const newBalls=getBalls(user);
+      showNotif('PURCHASED!',`${user} bought a ${ballType}! Balance: ${getPoints(user)}🪙 | 🔴${newBalls.pokeball} 🔵${newBalls.greatball} 🟡${newBalls.ultraball} ⚪${newBalls.masterball}`,'#2ecc71',5000);
+    }
+    return;
+  }
+
+  // Pokedex — show personal collection
+  if(m==='!pokedex'||m==='!mydex'){
+    const dex=getPokedex(user);
+    const p=getOrCreate(user);
+    if(dex.length===0){
+      showNotif('📖 POKEDEX',user+' has no Pokemon yet! Guess one to start your collection!','#3498db',5000);
+    }else{
+      showNotif('📖 '+user.toUpperCase()+"'S POKEDEX",`${dex.length} Pokemon caught | ${p.guessed||0} guessed | ${p.wins||0} battle wins | ${getPoints(user)}🪙`,'#3498db',6000);
+    }
+    return;
+  }
+
+  // Stats
+  if(m==='!stats'||m==='!trainer'){
+    const p=getOrCreate(user);
+    const balls=getBalls(user);
+    showNotif('🏆 '+user.toUpperCase(),
+      `Guessed: ${p.guessed||0} | Caught: ${p.caught||0} | Wins: ${p.wins||0} | Coins: ${getPoints(user)}🪙 | Balls: 🔴${balls.pokeball} 🔵${balls.greatball} 🟡${balls.ultraball} ⚪${balls.masterball}`,
+      '#FFD700',7000);
+    return;
+  }
+
+  // Help
+  if(m==='!pokemon'||m==='!phelp'){
+    showNotif('📋 COMMANDS',
+      '!startpokemon | !points | !shop | !buy [ball] | !pokedex | !stats | !battle @user | !accept | !decline | !attack | !special | !defend',
+      '#aaa',8000);
+    return;
+  }
+
+  // Mod: give points — !givepoints @user 500
+  if((isMod||isMe)&&m.startsWith('!givepoints ')){
+    const parts=m.replace('!givepoints ','').split(' ');
+    const target=parts[0].replace('@','');
+    const amt=parseInt(parts[1])||100;
+    addPoints(target,amt);
+    showNotif('COINS GIVEN!',`${target} received ${amt}🪙! New balance: ${getPoints(target)}🪙`,'#2ecc71');
+    return;
+  }
+
+  // Mod: give ball — !giveball @user pokeball 3
+  if((isMod||isMe)&&m.startsWith('!giveball ')){
+    const parts=m.replace('!giveball ','').split(' ');
+    const target=parts[0].replace('@','');
+    const ballType=parts[1]||'pokeball';
+    const amt=parseInt(parts[2])||1;
+    if(SHOP[ballType]){ giveBall(target,ballType,amt); showNotif('BALL GIVEN!',`${target} received ${amt}x ${ballType}!`,'#2ecc71'); }
+    return;
+  }
+
+  // Catch commands — uses ball inventory
+  if(catchActive&&curPkm){
+    const ballTypes=['pokeball','greatball','ultraball','masterball'];
+    const cmdBall=ballTypes.find(b=>m==='!'+b);
+    if(cmdBall){
+      ensureStarterBall(user);
+      if(hasBall(user,cmdBall)){
+        doCatch(user,cmdBall);
+      }else{
+        const cost=SHOP[cmdBall].cost;
+        showNotif('NO BALLS!',`${user} has no ${cmdBall}! Buy one: !buy ${cmdBall} (${cost}🪙) | Balance: ${getPoints(user)}🪙`,'#e74c3c',5000);
+      }
+      return;
+    }
+  }
+
+  // Battle commands
+  if(m.startsWith('!battle ')&&!battleActive){
+    const target=m.replace('!battle ','').replace('@','').trim();
+    if(target&&target!==user.toLowerCase()) initBattle(user,target);
+    return;
+  }
+  if(m==='!accept'&&pendingChallenge){
+    const isTarget=user.toLowerCase()===pendingChallenge.target.toLowerCase();
+    const isStreamerAccept=isMe&&pendingChallenge.vsMe;
+    if(isTarget||isStreamerAccept||isMod) startBattle(pendingChallenge.challenger,pendingChallenge.target,pendingChallenge.vsMe);
+    return;
+  }
+  if(m==='!decline'&&pendingChallenge){
+    if(user.toLowerCase()===pendingChallenge.target.toLowerCase()||isMod){
+      showNotif('DECLINED',pendingChallenge.target+' declined the battle!','#e74c3c');
+      pendingChallenge=null; document.getElementById('challenge-notif').classList.remove('show');
+    }
+    return;
+  }
+
+  // Battle moves
+  if(battleActive&&battle.waitingForMove){
+    const t=battle.turn;
+    const isP1=user.toLowerCase()===battle.p1.trainer.toLowerCase()&&t==='p1';
+    const isP2=battle.p2IsHuman&&user.toLowerCase()===battle.p2.trainer.toLowerCase()&&t==='p2';
+    if(isP1||isP2||isMe){
+      const opp=t==='p1'?'p2':'p1';
+      if(m==='!attack') doMove(t,opp,'attack');
+      else if(m==='!special') doMove(t,opp,'special');
+      else if(m==='!defend') doMove(t,opp,'defend');
+      return;
+    }
+  }
+
+  // Guess
+  if(gameActive&&!guessLock){
+    if(curAnswers.some(a=>clean(a)===clean(m))) correctGuess(user);
+  }
+}
+
+// ── START ──
+connectTwitch();
+
+// ── KEYBOARD TEST ──
+// Space=start, G=correct guess, T=timeout, C=catch, B=test battle, A=attack, S=special, D=defend
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); startGame(); }
+  if(e.code==='KeyG'&&gameActive) correctGuess('TestViewer');
+  if(e.code==='KeyT'&&gameActive){ clearInterval(timerInt); timeoutGame(); }
+  if(e.code==='KeyC'&&catchActive) doCatch('TestViewer','pokeball');
+  if(e.code==='KeyB'&&!battleActive) initBattle('Viewer1','Viewer2');
+  if(e.code==='KeyX'&&pendingChallenge) startBattle(pendingChallenge.challenger,pendingChallenge.target,pendingChallenge.vsMe);
+  if(e.code==='KeyA'&&battleActive&&battle.waitingForMove) playerMove('attack');
+  if(e.code==='KeyS'&&battleActive&&battle.waitingForMove) playerMove('special');
+  if(e.code==='KeyD'&&battleActive&&battle.waitingForMove) playerMove('defend');
+});
+</script>
+</body>
+</html>
