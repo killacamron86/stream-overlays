@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>killacamron86 — Pokemon Game Pokedex</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Exo+2:wght@400;700;900&display=swap');
+:root{--blue:#1565C0;--yellow:#FFD700;--dark:#0d0d1a;--mid:#1a1a2e;--border:#2a2a4a;--green:#2ecc71;--red:#e74c3c;--purple:#9b59b6;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);color:#fff;font-family:'Exo 2',sans-serif;min-height:100vh;}
+
+/* HEADER */
+.site-header{background:var(--yellow);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #fff;position:sticky;top:0;z-index:100;}
+.site-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--dark);}
+.site-sub{font-size:10px;color:var(--dark);opacity:.7;margin-top:3px;}
+
+/* SEARCH */
+.search-section{max-width:640px;margin:36px auto;padding:0 20px;text-align:center;}
+.search-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--yellow);margin-bottom:18px;line-height:2;}
+.search-box{display:flex;gap:10px;}
+.search-box input{flex:1;background:var(--mid);border:2px solid var(--border);border-radius:10px;padding:14px 18px;color:#fff;font-family:'Exo 2',sans-serif;font-size:16px;}
+.search-box input:focus{outline:none;border-color:var(--yellow);}
+.search-box button{background:var(--yellow);color:var(--dark);border:none;border-radius:10px;padding:14px 22px;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;}
+#error-msg{display:none;color:var(--red);margin-top:14px;font-size:14px;font-weight:700;}
+
+/* PROFILE */
+#profile-section{display:none;max-width:900px;margin:0 auto 40px;padding:0 20px;}
+.profile-header{background:var(--mid);border:2px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:16px;}
+.profile-name{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--yellow);margin-bottom:12px;}
+.profile-trainer-badge{display:inline-block;background:var(--yellow);color:var(--dark);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:900;margin-bottom:14px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+.stat-box{background:#111126;border-radius:10px;padding:12px;text-align:center;border:1px solid var(--border);}
+.stat-num{font-size:26px;font-weight:900;color:var(--yellow);}
+.stat-lbl{font-size:11px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
+.balls-row{display:flex;gap:10px;flex-wrap:wrap;}
+.ball-chip{background:#111126;border-radius:8px;padding:8px 14px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid var(--border);}
+
+/* GYM BADGES */
+.section-title{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--yellow);margin:20px 0 12px;letter-spacing:1px;}
+.badges-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+.gym-badge{width:58px;height:58px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;border:3px solid #333;position:relative;transition:transform .2s;}
+.gym-badge.earned{border-color:gold;box-shadow:0 0 12px rgba(255,200,0,.5);transform:scale(1.05);}
+.gym-badge.locked{opacity:.25;filter:grayscale(1);}
+.gym-badge-name{font-size:8px;color:#888;text-align:center;margin-top:4px;width:62px;line-height:1.3;}
+.gym-badge-wrap{display:flex;flex-direction:column;align-items:center;}
+
+/* TROPHIES */
+.trophy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:6px;}
+.trophy-card{background:#0d0020;border:2px solid #2a0050;border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;}
+.trophy-card.invasion{background:#00070a;border-color:#1a3d1a;}
+.trophy-card.victory{border-color:#FFD700;}
+.trophy-card img{width:48px;height:48px;image-rendering:pixelated;}
+.trophy-info .trophy-name{font-size:14px;font-weight:900;color:#FFD700;}
+.trophy-info .trophy-sub{font-size:11px;color:#888;margin-top:3px;line-height:1.5;}
+.trophy-caught-badge{font-size:10px;background:#FFD700;color:#000;border-radius:4px;padding:1px 6px;font-weight:900;margin-left:4px;}
+.empty-trophies{font-size:13px;color:#444;padding:10px 0;}
+
+/* POKEMON GRID */
+.pkm-section-title{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--yellow);margin:20px 0 12px;letter-spacing:1px;}
+#p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;}
+.pkm-card{background:var(--mid);border:2px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;transition:border-color .2s;}
+.pkm-card:hover{border-color:var(--yellow);}
+.pkm-card img{width:64px;height:64px;image-rendering:pixelated;}
+.pkm-card .num{font-size:10px;color:#555;margin-top:3px;}
+.pkm-card .name{font-size:11px;font-weight:700;color:#ddd;margin-top:2px;line-height:1.3;}
+.pkm-card.legendary{border-color:#9b59b6;background:#100020;}
+.pkm-card.legendary .name{color:#cc99ff;}
+.loading{text-align:center;padding:30px;color:#555;font-size:14px;}
+.empty{text-align:center;padding:40px;color:#555;}
+.empty-icon{display:block;font-size:48px;margin-bottom:12px;}
+
+/* LEADERBOARD */
+.lb-section{max-width:900px;margin:0 auto 50px;padding:0 20px;}
+.lb-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.lb-tab{background:var(--mid);border:2px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;color:#aaa;transition:all .2s;}
+.lb-tab.active,.lb-tab:hover{border-color:var(--yellow);color:var(--yellow);}
+#lb-card{background:var(--mid);border:2px solid var(--border);border-radius:14px;overflow:hidden;}
+.lb-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
+.lb-row.gold{background:rgba(255,200,0,.06);}
+.lb-row.silver{background:rgba(200,200,200,.04);}
+.lb-row.bronze{background:rgba(180,100,0,.05);}
+.lb-medal{font-size:20px;min-width:28px;text-align:center;}
+.lb-sprite{width:44px;height:44px;image-rendering:pixelated;}
+.lb-name{font-size:16px;font-weight:900;}
+.lb-sub{font-size:12px;color:#666;margin-top:2px;}
+.lb-value{margin-left:auto;text-align:right;}
+.lb-num{font-size:22px;font-weight:900;color:var(--yellow);}
+.lb-unit{font-size:11px;color:#666;}
+.lb-badges-row{display:flex;gap:3px;margin-top:3px;}
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div>
+    <div class="site-title">killacamron86 Pokemon Game</div>
+    <div class="site-sub">Live Pokedex — updates after every catch</div>
+  </div>
+  <div style="font-size:11px;color:var(--dark);opacity:.7;">Stream: twitch.tv/killacamron86</div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-section">
+  <div class="search-title">TRAINER LOOKUP</div>
+  <div class="search-box">
+    <input type="text" id="search-input" placeholder="Enter Twitch username..." />
+    <button onclick="lookupUser()">SEARCH</button>
+  </div>
+  <div id="error-msg">Trainer not found! Make sure you've played in chat first.</div>
+</div>
+
+<!-- PROFILE -->
+<div id="profile-section">
+
+  <div class="profile-header">
+    <div class="profile-name" id="p-name">TRAINER</div>
+    <div class="profile-trainer-badge" id="p-badge">BEGINNER</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num" id="p-caught">0</div><div class="stat-lbl">Caught</div></div>
+      <div class="stat-box"><div class="stat-num" id="p-dex">0</div><div class="stat-lbl">Unique Dex</div></div>
+      <div class="stat-box"><div class="stat-num" id="p-guessed">0</div><div class="stat-lbl">Guessed</div></div>
+      <div class="stat-box"><div class="stat-num" id="p-wins">0</div><div class="stat-lbl">Battle Wins</div></div>
+      <div class="stat-box"><div class="stat-num" id="p-coins">0</div><div class="stat-lbl">Coins 🪙</div></div>
+      <div class="stat-box"><div class="stat-num" id="p-streak">0</div><div class="stat-lbl">Day Streak 🔥</div></div>
+    </div>
+    <div class="balls-row" id="p-balls"></div>
+  </div>
+
+  <!-- GYM BADGES -->
+  <div class="section-title">🏅 GYM BADGES — KANTO</div>
+  <div class="badges-row" id="p-gym-badges"></div>
+  <div style="font-size:12px;color:#555;margin-bottom:16px;" id="p-badge-count"></div>
+
+  <!-- LEGENDARY TROPHIES -->
+  <div class="section-title">⭐ LEGENDARY BOSS VICTORIES</div>
+  <div class="trophy-grid" id="p-leg-trophies"></div>
+
+  <!-- INVASION TROPHIES -->
+  <div class="section-title">⚔️ INVASION VICTORIES</div>
+  <div class="trophy-grid" id="p-inv-trophies"></div>
+
+  <!-- POKEMON COLLECTION -->
+  <div class="pkm-section-title" id="p-dex-title">POKEMON COLLECTION</div>
+  <div id="p-grid"></div>
+
+</div>
+
+<!-- LEADERBOARD -->
+<div class="lb-section">
+  <div class="section-title">🏆 GLOBAL LEADERBOARDS</div>
+  <div class="lb-tabs">
+    <div class="lb-tab active" onclick="showLb('caught')">Most Caught</div>
+    <div class="lb-tab" onclick="showLb('guessed')">Most Guessed</div>
+    <div class="lb-tab" onclick="showLb('wins')">Battle Wins</div>
+    <div class="lb-tab" onclick="showLb('points')">Most Coins</div>
+    <div class="lb-tab" onclick="showLb('badges')">Gym Badges</div>
+    <div class="lb-tab" onclick="showLb('trophies')">Boss Trophies</div>
+  </div>
+  <div id="lb-card"><div class="loading">Loading...</div></div>
+</div>
+
+<script>
+const JSONBIN_ID  = '69d45fe9aaba882197cf971b';
+const JSONBIN_KEY = '$2a$10$nk9y7wSGAewuGXTJuUG4yObgnjMhyRmLlnZYjOSMrgyIh1g71hMlW';
+
+const KANTO_GYMS=[
+  {id:'boulder',icon:'🪨',name:'Boulder Badge',gym:'Pewter'},
+  {id:'cascade', icon:'💧',name:'Cascade Badge',gym:'Cerulean'},
+  {id:'thunder', icon:'⚡',name:'Thunder Badge',gym:'Vermilion'},
+  {id:'rainbow', icon:'🌿',name:'Rainbow Badge',gym:'Celadon'},
+  {id:'soul',    icon:'☠️',name:'Soul Badge',   gym:'Fuchsia'},
+  {id:'marsh',   icon:'🔮',name:'Marsh Badge',  gym:'Saffron'},
+  {id:'volcano', icon:'🌋',name:'Volcano Badge',gym:'Cinnabar'},
+  {id:'earth',   icon:'🌍',name:'Earth Badge',  gym:'Viridian'},
+];
+
+const LEGENDARY_IDS=new Set([144,145,146,150,151,243,244,245,249,250,251,377,378,379,380,381,382,383,384,385,386,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,638,639,640,641,642,643,644,645,646,647,648,649,716,717,718,719,720,721,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,801,802,803,804,805,806,807,808,809,888,889,890,891,892,893,894,895,896,897,898]);
+
+function fmt(n){ return n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '); }
+
+function getTrainerRank(p){
+  const caught=p.caught||0;
+  if(caught>=100) return '🌟 POKEMON MASTER';
+  if(caught>=50)  return '💎 ELITE TRAINER';
+  if(caught>=25)  return '🔥 ACE TRAINER';
+  if(caught>=10)  return '⭐ TRAINER';
+  if(caught>=5)   return '🌱 ROOKIE';
+  return '🥚 BEGINNER';
+}
+
+async function loadAllPlayers(){
+  try{
+    const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY}});
+    const d=await r.json();
+    return d?.record?.players||{};
+  }catch(e){ return {}; }
+}
+
+async function lookupUser(){
+  const username=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!username) return;
+  document.getElementById('error-msg').style.display='none';
+  document.getElementById('profile-section').style.display='none';
+  document.getElementById('p-grid').innerHTML='<div class="loading">Loading...</div>';
+
+  const allData=await loadAllPlayers();
+  const key=Object.keys(allData).find(k=>k.toLowerCase()===username);
+  const profile=allData[key];
+  if(!profile){ document.getElementById('error-msg').style.display='block'; return; }
+
+  // Basic stats
+  document.getElementById('p-name').textContent=key.toUpperCase()+"'S POKEDEX";
+  document.getElementById('p-badge').textContent=getTrainerRank(profile);
+  document.getElementById('p-caught').textContent=profile.caught||0;
+  document.getElementById('p-dex').textContent=profile.pokedex?.length||0;
+  document.getElementById('p-guessed').textContent=profile.guessed||0;
+  document.getElementById('p-wins').textContent=profile.wins||0;
+  document.getElementById('p-coins').textContent=(profile.points||0).toLocaleString();
+  document.getElementById('p-streak').textContent=profile.dailyStreak||0;
+  document.getElementById('p-dex-title').textContent=`POKEMON COLLECTION (${profile.pokedex?.length||0})`;
+
+  // Balls
+  const balls=profile.balls||{};
+  document.getElementById('p-balls').innerHTML=[
+    ['🔴','Pokeball',balls.pokeball||0],
+    ['🔵','Greatball',balls.greatball||0],
+    ['🟡','Ultraball',balls.ultraball||0],
+    ['⚪','Masterball',balls.masterball||0],
+  ].map(([e,n,c])=>`<div class="ball-chip"><span>${e}</span><small>${n} x${c}</small></div>`).join('');
+
+  // Gym Badges
+  const badges=profile.badges||{};
+  const badgeCount=Object.keys(badges).length;
+  document.getElementById('p-badge-count').textContent=`${badgeCount}/8 Kanto badges earned${badgeCount===8?' — Challenge the Elite 4!':''}`;
+  document.getElementById('p-gym-badges').innerHTML=KANTO_GYMS.map(g=>{
+    const earned=!!badges[g.id];
+    const date=earned?new Date(badges[g.id]).toLocaleDateString():'';
+    return `<div class="gym-badge-wrap">
+      <div class="gym-badge ${earned?'earned':'locked'}" title="${g.name}${earned?' — earned '+date:' (locked)'}">
+        ${g.icon}
+      </div>
+      <div class="gym-badge-name" style="color:${earned?'#FFD700':'#333'}">${g.name.replace(' Badge','')}</div>
+    </div>`;
+  }).join('');
+
+  // Legendary Trophies
+  const legT=profile.legendaryTrophies||[];
+  const legEl=document.getElementById('p-leg-trophies');
+  if(!legT.length){
+    legEl.innerHTML='<div class="empty-trophies">No legendary boss victories yet — join the next raid!</div>';
+  } else {
+    legEl.innerHTML=legT.slice(0,12).map(t=>`
+      <div class="trophy-card ${t.caught?'victory':''}">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${t.id}.png" onerror="this.style.display='none'"/>
+        <div class="trophy-info">
+          <div class="trophy-name">${t.name}${t.caught?'<span class="trophy-caught-badge">CAUGHT!</span>':''}</div>
+          <div class="trophy-sub">${t.raiders} raiders • ${new Date(t.date).toLocaleDateString()}</div>
+          ${t.caught&&t.mvp===key?'<div style="font-size:10px;color:#FFD700;margin-top:2px;">🎯 You threw the Masterball!</div>':''}
+        </div>
+      </div>`).join('');
+  }
+
+  // Invasion Trophies
+  const invT=profile.invasionTrophies||[];
+  const invEl=document.getElementById('p-inv-trophies');
+  if(!invT.length){
+    invEl.innerHTML='<div class="empty-trophies">No invasion victories yet — join the next one!</div>';
+  } else {
+    invEl.innerHTML=invT.slice(0,12).map(t=>`
+      <div class="trophy-card invasion ${t.defeated===3?'victory':''}">
+        <div style="font-size:28px;">⚔️</div>
+        <div class="trophy-info">
+          <div class="trophy-name">${t.defeated}/3 Bosses Defeated</div>
+          <div class="trophy-sub">${(t.bosses||[]).join(', ')}</div>
+          <div class="trophy-sub">${t.raiders} raiders • ${new Date(t.date).toLocaleDateString()}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Pokemon Grid
+  const grid=document.getElementById('p-grid');
+  grid.innerHTML='';
+  if(!profile.pokedex?.length){
+    grid.innerHTML='<div class="empty"><span class="empty-icon">😢</span>No Pokemon caught yet!<br>Watch the stream and guess to start!</div>';
+  } else {
+    const sorted=[...profile.pokedex].sort((a,b)=>a-b);
+    sorted.forEach(id=>{
+      const isLeg=LEGENDARY_IDS.has(id);
+      const card=document.createElement('div');
+      card.className='pkm-card'+(isLeg?' legendary':'');
+      card.innerHTML=`<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png"/><div class="num">#${String(id).padStart(3,'0')}</div><div class="name">...</div>${isLeg?'<div style="font-size:9px;color:#9b59b6;margin-top:2px;">LEGENDARY</div>':''}`;
+      grid.appendChild(card);
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r=>r.json()).then(d=>card.querySelector('.name').textContent=fmt(d.name)).catch(()=>card.querySelector('.name').textContent='???');
+    });
+  }
+
+  document.getElementById('profile-section').style.display='block';
+  document.getElementById('profile-section').scrollIntoView({behavior:'smooth'});
+}
+
+// LEADERBOARD
+let currentCat='caught';
+async function showLb(cat){
+  currentCat=cat;
+  document.querySelectorAll('.lb-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  const card=document.getElementById('lb-card');
+  card.innerHTML='<div class="loading">Loading...</div>';
+  const allData=await loadAllPlayers();
+
+  let entries;
+  if(cat==='badges'){
+    entries=Object.entries(allData).map(([name,p])=>({name,value:Object.keys(p.badges||{}).length,profile:p})).filter(e=>e.value>0);
+  } else if(cat==='trophies'){
+    entries=Object.entries(allData).map(([name,p])=>({name,value:(p.legendaryTrophies?.length||0)+(p.invasionTrophies?.length||0),profile:p})).filter(e=>e.value>0);
+  } else {
+    entries=Object.entries(allData).map(([name,p])=>({name,value:p[cat]||0,profile:p})).filter(e=>e.value>0);
+  }
+
+  entries=entries.sort((a,b)=>b.value-a.value).slice(0,10);
+  if(!entries.length){ card.innerHTML='<div class="loading">No data yet — start playing!</div>'; return; }
+
+  const medals=['🥇','🥈','🥉'];
+  const classes=['gold','silver','bronze'];
+  const units={caught:'caught',guessed:'guessed',wins:'battle wins',points:'coins',badges:'gym badges',trophies:'boss trophies'};
+
+  card.innerHTML=entries.map((e,i)=>{
+    const sprite=e.profile.pokedex?.length?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${e.profile.pokedex[Math.floor(Math.random()*Math.min(e.profile.pokedex.length,5))]}.png`:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${(i%151)+1}.png`;
+    const badgesOwned=Object.keys(e.profile.badges||{});
+    const gymIcons=KANTO_GYMS.filter(g=>badgesOwned.includes(g.id)).map(g=>g.icon).join('');
+    return `<div class="lb-row ${classes[i]||''}">
+      <div class="lb-medal">${medals[i]||'#'+(i+1)}</div>
+      <img class="lb-sprite" src="${sprite}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png'"/>
+      <div style="flex:1;">
+        <div class="lb-name">${e.name}</div>
+        <div class="lb-sub">${e.profile.pokedex?.length||0} unique • ${getTrainerRank(e.profile)}</div>
+        ${gymIcons?`<div class="lb-badges-row" style="font-size:14px;">${gymIcons}</div>`:''}
+      </div>
+      <div class="lb-value">
+        <div class="lb-num">${typeof e.value==='number'?e.value.toLocaleString():e.value}</div>
+        <div class="lb-unit">${units[cat]}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('search-input').addEventListener('keydown',e=>{ if(e.key==='Enter') lookupUser(); });
+showLb('caught');
+</script>
+</body>
+</html>
