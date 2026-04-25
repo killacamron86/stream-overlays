@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>killacamron86 — Stream Hub</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Exo+2:wght@400;700;900&display=swap');
+
+:root{
+  --blue:#1565C0;--yellow:#FFD700;--dark:#0d0d1a;--mid:#1a1a2e;
+  --border:#2a2a4a;--green:#2ecc71;--red:#e74c3c;--purple:#9b59b6;
+  --fnf-red:#dc2626;--fnf-dark:#0d0005;--fnf-mid:#1a0008;
+  --hybrid:#7c3aed;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);color:#fff;font-family:'Exo 2',sans-serif;min-height:100vh;}
+
+/* ===================== HEADER ===================== */
+.site-header{
+  background:var(--yellow);padding:0;
+  border-bottom:4px solid #fff;
+  position:sticky;top:0;z-index:200;
+}
+.header-top{
+  padding:12px 20px;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:10px;
+}
+.site-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--dark);}
+.site-sub{font-size:10px;color:var(--dark);opacity:.7;margin-top:3px;}
+.twitch-link{font-size:11px;color:var(--dark);opacity:.7;text-decoration:none;}
+.twitch-link:hover{opacity:1;}
+
+/* TAB BAR */
+.tab-bar{
+  display:flex;border-top:2px solid rgba(0,0,0,.1);
+}
+.tab-btn{
+  flex:1;padding:11px 10px;
+  font-family:'Press Start 2P',monospace;font-size:9px;
+  border:none;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  letter-spacing:.03em;
+}
+.tab-btn.pkm-tab{
+  background:var(--yellow);color:var(--dark);
+  border-right:2px solid rgba(0,0,0,.12);
+}
+.tab-btn.pkm-tab:hover{background:#ffe033;}
+.tab-btn.pkm-tab.active{background:#fff;color:var(--dark);}
+.tab-btn.fnf-tab{
+  background:#1a0008;color:var(--fnf-red);
+  border-left:2px solid rgba(255,0,0,.2);
+}
+.tab-btn.fnf-tab:hover{background:#260010;}
+.tab-btn.fnf-tab.active{background:#2a0010;color:#ff6b6b;border-top:3px solid var(--fnf-red);}
+.tab-icon{font-size:14px;}
+
+/* TAB CONTENT */
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ===================== POKEMON STYLES ===================== */
+.search-section{max-width:640px;margin:36px auto;padding:0 20px;text-align:center;}
+.search-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--yellow);margin-bottom:18px;line-height:2;}
+.search-box{display:flex;gap:10px;}
+.search-box input{flex:1;background:var(--mid);border:2px solid var(--border);border-radius:10px;padding:14px 18px;color:#fff;font-family:'Exo 2',sans-serif;font-size:16px;}
+.search-box input:focus{outline:none;border-color:var(--yellow);}
+.search-box button{background:var(--yellow);color:var(--dark);border:none;border-radius:10px;padding:14px 22px;font-family:'Press Start 2P',monospace;font-size:9px;cursor:pointer;}
+#error-msg{display:none;color:var(--red);margin-top:14px;font-size:14px;font-weight:700;}
+#profile-section{display:none;max-width:900px;margin:0 auto 40px;padding:0 20px;}
+.profile-header{background:var(--mid);border:2px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:16px;}
+.profile-name{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--yellow);margin-bottom:12px;}
+.profile-trainer-badge{display:inline-block;background:var(--yellow);color:var(--dark);border-radius:6px;padding:4px 14px;font-size:13px;font-weight:900;margin-bottom:14px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+.stat-box{background:#111126;border-radius:10px;padding:12px;text-align:center;border:1px solid var(--border);}
+.stat-num{font-size:26px;font-weight:900;color:var(--yellow);}
+.stat-lbl{font-size:11px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
+.balls-row{display:flex;gap:10px;flex-wrap:wrap;}
+.ball-chip{background:#111126;border-radius:8px;padding:8px 14px;font-size:14px;display:flex;align-items:center;gap:6px;border:1px solid var(--border);}
+.section-title{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--yellow);margin:20px 0 12px;letter-spacing:1px;}
+.badges-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+.gym-badge{width:58px;height:58px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;border:3px solid #333;transition:transform .2s;}
+.gym-badge.earned{border-color:gold;box-shadow:0 0 12px rgba(255,200,0,.5);transform:scale(1.05);}
+.gym-badge.locked{opacity:.25;filter:grayscale(1);}
+.gym-badge-name{font-size:8px;color:#888;text-align:center;margin-top:4px;width:62px;line-height:1.3;}
+.gym-badge-wrap{display:flex;flex-direction:column;align-items:center;}
+.trophy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:6px;}
+.trophy-card{background:#0d0020;border:2px solid #2a0050;border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;}
+.trophy-card.invasion{background:#00070a;border-color:#1a3d1a;}
+.trophy-card.victory{border-color:#FFD700;}
+.trophy-card img{width:48px;height:48px;image-rendering:pixelated;}
+.trophy-info .trophy-name{font-size:14px;font-weight:900;color:#FFD700;}
+.trophy-info .trophy-sub{font-size:11px;color:#888;margin-top:3px;line-height:1.5;}
+.trophy-caught-badge{font-size:10px;background:#FFD700;color:#000;border-radius:4px;padding:1px 6px;font-weight:900;margin-left:4px;}
+.empty-trophies{font-size:13px;color:#444;padding:10px 0;}
+.pkm-section-title{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--yellow);margin:20px 0 12px;letter-spacing:1px;}
+#p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;}
+.pkm-card{background:var(--mid);border:2px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;transition:border-color .2s;}
+.pkm-card:hover{border-color:var(--yellow);}
+.pkm-card img{width:64px;height:64px;image-rendering:pixelated;}
+.pkm-card .num{font-size:10px;color:#555;margin-top:3px;}
+.pkm-card .name{font-size:11px;font-weight:700;color:#ddd;margin-top:2px;line-height:1.3;}
+.pkm-card.legendary{border-color:#9b59b6;background:#100020;}
+.pkm-card.legendary .name{color:#cc99ff;}
+.loading{text-align:center;padding:30px;color:#555;font-size:14px;}
+.empty{text-align:center;padding:40px;color:#555;}
+.empty-icon{display:block;font-size:48px;margin-bottom:12px;}
+.lb-section{max-width:900px;margin:0 auto 50px;padding:0 20px;}
+.lb-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.lb-tab{background:var(--mid);border:2px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;color:#aaa;transition:all .2s;}
+.lb-tab.active,.lb-tab:hover{border-color:var(--yellow);color:var(--yellow);}
+#lb-card{background:var(--mid);border:2px solid var(--border);border-radius:14px;overflow:hidden;}
+.lb-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
+.lb-row.gold{background:rgba(255,200,0,.06);}
+.lb-row.silver{background:rgba(200,200,200,.04);}
+.lb-row.bronze{background:rgba(180,100,0,.05);}
+.lb-medal{font-size:20px;min-width:28px;text-align:center;}
+.lb-sprite{width:44px;height:44px;image-rendering:pixelated;}
+.lb-name{font-size:16px;font-weight:900;}
+.lb-sub{font-size:12px;color:#666;margin-top:2px;}
+.lb-value{margin-left:auto;text-align:right;}
+.lb-num{font-size:22px;font-weight:900;color:var(--yellow);}
+.lb-unit{font-size:11px;color:#666;}
+.lb-badges-row{display:flex;gap:3px;margin-top:3px;}
+
+/* ===================== FNF STYLES ===================== */
+#fnf-tab{background:var(--fnf-dark);}
+.fnf-wrap{max-width:960px;margin:0 auto;padding:24px 20px 60px;}
+
+/* belt hero */
+.fnf-belt-hero{
+  background:linear-gradient(135deg,#1a0008,#0d0005);
+  border:1px solid rgba(220,38,38,.3);
+  border-radius:16px;padding:24px;margin-bottom:24px;
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.belt-svg-big{flex-shrink:0;}
+.belt-hero-info{flex:1;min-width:200px;}
+.belt-hero-title{font-family:'Press Start 2P',monospace;font-size:8px;color:rgba(220,38,38,.6);letter-spacing:.1em;margin-bottom:8px;}
+.belt-hero-name{font-family:'Press Start 2P',monospace;font-size:18px;color:#FFD700;margin-bottom:6px;word-break:break-all;}
+.belt-hero-defs{font-size:13px;color:rgba(255,255,255,.4);}
+.belt-vacant{font-family:'Press Start 2P',monospace;font-size:13px;color:rgba(220,38,38,.5);font-style:italic;}
+
+/* FNF lookup */
+.fnf-lookup{
+  background:#1a0008;border:1px solid rgba(220,38,38,.2);
+  border-radius:12px;padding:20px;margin-bottom:24px;
+}
+.fnf-lookup-title{font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(255,100,100,.7);margin-bottom:14px;letter-spacing:.06em;}
+.fnf-search-box{display:flex;gap:10px;}
+.fnf-search-box input{
+  flex:1;background:#0d0005;border:2px solid rgba(220,38,38,.3);
+  border-radius:10px;padding:13px 16px;color:#fff;
+  font-family:'Exo 2',sans-serif;font-size:16px;
+}
+.fnf-search-box input:focus{outline:none;border-color:var(--fnf-red);}
+.fnf-search-box button{
+  background:var(--fnf-red);color:#fff;border:none;
+  border-radius:10px;padding:13px 20px;
+  font-family:'Press Start 2P',monospace;font-size:8px;cursor:pointer;
+}
+#fnf-error{display:none;color:#ef4444;margin-top:10px;font-size:13px;font-weight:700;}
+#fnf-profile{display:none;margin-top:16px;}
+.fnf-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:14px;}
+.fnf-stat{background:#0d0005;border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(220,38,38,.15);}
+.fnf-stat-num{font-size:24px;font-weight:900;color:var(--fnf-red);}
+.fnf-stat-lbl{font-size:11px;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:1px;}
+
+/* HOW TO PLAY */
+.fnf-section-title{font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(220,38,38,.8);margin:24px 0 14px;letter-spacing:.06em;}
+.howto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:24px;}
+.howto-card{
+  background:#1a0008;border:1px solid rgba(220,38,38,.18);
+  border-radius:12px;padding:16px;
+}
+.howto-card-title{
+  font-family:'Press Start 2P',monospace;font-size:8px;
+  color:rgba(255,100,100,.7);margin-bottom:12px;letter-spacing:.04em;
+}
+.cmd-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;}
+.cmd-row:last-child{margin-bottom:0;}
+.cmd-key{
+  font-family:'Press Start 2P',monospace;font-size:8px;
+  color:#fbbf24;background:rgba(251,191,36,.08);
+  border:1px solid rgba(251,191,36,.2);border-radius:5px;
+  padding:4px 8px;white-space:nowrap;flex-shrink:0;line-height:1.6;
+}
+.cmd-desc{font-size:13px;color:rgba(255,255,255,.5);line-height:1.6;padding-top:2px;}
+
+/* ROSTER */
+.fnf-roster-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+  gap:10px;margin-bottom:24px;
+}
+.fnf-char-card{
+  background:#1a0008;border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;padding:12px 8px 10px;
+  text-align:center;position:relative;
+}
+.fnf-char-card.unlocked{border-color:rgba(220,38,38,.2);}
+.fnf-char-card.hybrid-card{border-color:rgba(124,58,237,.35);}
+.fnf-char-card.villain-card{border-color:rgba(220,38,38,.35);}
+.fnf-char-card.locked-card{border-color:rgba(255,255,255,.04);opacity:.8;}
+.fnf-char-name{font-family:'Press Start 2P',monospace;font-size:7px;color:rgba(255,255,255,.75);margin-top:6px;line-height:1.4;}
+.fnf-char-series{font-size:9px;color:rgba(255,255,255,.25);margin-top:3px;}
+.fnf-char-class{font-size:8px;font-weight:700;padding:2px 6px;border-radius:99px;margin-top:4px;display:inline-block;}
+.cls-hero{background:rgba(34,197,94,.12);color:#86efac;}
+.cls-villain{background:rgba(220,38,38,.12);color:#fca5a5;}
+.cls-hybrid{background:rgba(124,58,237,.15);color:#c4b5fd;}
+.cls-locked{background:rgba(255,255,255,.05);color:rgba(255,255,255,.2);}
+.px{image-rendering:pixelated;display:block;margin:0 auto;}
+.launch-badge{
+  position:absolute;top:5px;right:5px;
+  font-size:7px;font-weight:700;
+  background:rgba(124,58,237,.25);color:#c4b5fd;
+  border:1px solid rgba(124,58,237,.3);
+  border-radius:4px;padding:1px 4px;
+}
+.vault-badge-card{
+  position:absolute;top:5px;right:5px;
+  font-size:7px;background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.2);border-radius:4px;padding:1px 4px;
+}
+
+/* FNF LEADERBOARD */
+#fnf-lb-card{background:#1a0008;border:1px solid rgba(220,38,38,.2);border-radius:14px;overflow:hidden;}
+.fnf-lb-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.fnf-lb-tab{
+  background:#1a0008;border:1px solid rgba(220,38,38,.2);
+  border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;
+  cursor:pointer;color:#666;transition:all .2s;
+}
+.fnf-lb-tab.active,.fnf-lb-tab:hover{border-color:var(--fnf-red);color:#ef4444;}
+.fnf-lb-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(220,38,38,.1);}
+.fnf-lb-row:last-child{border-bottom:none;}
+.fnf-lb-row.gold{background:rgba(255,200,0,.04);}
+.fnf-lb-row.silver{background:rgba(200,200,200,.02);}
+.fnf-lb-row.bronze{background:rgba(180,100,0,.03);}
+.fnf-lb-name{font-size:16px;font-weight:900;}
+.fnf-lb-sub{font-size:12px;color:#444;margin-top:2px;}
+.fnf-lb-num{font-size:22px;font-weight:900;color:var(--fnf-red);}
+.fnf-lb-unit{font-size:11px;color:#444;}
+
+/* hybrid vault note */
+.vault-note{
+  background:rgba(124,58,237,.08);
+  border:1px solid rgba(124,58,237,.2);
+  border-radius:10px;padding:14px 18px;
+  margin-bottom:24px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.vault-note-text{font-size:13px;color:rgba(167,139,250,.7);line-height:1.6;flex:1;}
+.vault-note-badge{
+  font-family:'Press Start 2P',monospace;font-size:7px;
+  color:#c4b5fd;background:rgba(124,58,237,.2);
+  border:1px solid rgba(124,58,237,.3);border-radius:6px;
+  padding:5px 10px;white-space:nowrap;
+}
+
+@media(max-width:600px){
+  .site-title{font-size:8px;}
+  .tab-btn{font-size:7px;padding:10px 6px;}
+  .belt-hero-name{font-size:13px;}
+  .cmd-key{font-size:7px;}
+  .fnf-char-name{font-size:6px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<div class="site-header">
+  <div class="header-top">
+    <div>
+      <div class="site-title">killacamron86</div>
+      <div class="site-sub">Stream Hub · Pokemon &amp; Friday Night Fights</div>
+    </div>
+    <a href="https://twitch.tv/killacamron86" target="_blank" class="twitch-link">twitch.tv/killacamron86</a>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn pkm-tab active" id="tab-pkm-btn" onclick="switchTab('pkm')">
+      <span class="tab-icon">🎮</span> POKEMON
+    </button>
+    <button class="tab-btn fnf-tab" id="tab-fnf-btn" onclick="switchTab('fnf')">
+      <span class="tab-icon">🥊</span> FRIDAY NIGHT FIGHTS
+    </button>
+  </div>
+</div>
+
+<!-- ===================== POKEMON TAB ===================== -->
+<div class="tab-content active" id="pkm-tab">
+
+  <div class="search-section">
+    <div class="search-title">TRAINER LOOKUP</div>
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Enter Twitch username..." />
+      <button onclick="lookupUser()">SEARCH</button>
+    </div>
+    <div id="error-msg">Trainer not found! Make sure you've played in chat first.</div>
+  </div>
+
+  <div id="profile-section">
+    <div class="profile-header">
+      <div class="profile-name" id="p-name">TRAINER</div>
+      <div class="profile-trainer-badge" id="p-badge">BEGINNER</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-num" id="p-caught">0</div><div class="stat-lbl">Caught</div></div>
+        <div class="stat-box"><div class="stat-num" id="p-dex">0</div><div class="stat-lbl">Unique Dex</div></div>
+        <div class="stat-box"><div class="stat-num" id="p-guessed">0</div><div class="stat-lbl">Guessed</div></div>
+        <div class="stat-box"><div class="stat-num" id="p-wins">0</div><div class="stat-lbl">Battle Wins</div></div>
+        <div class="stat-box"><div class="stat-num" id="p-coins">0</div><div class="stat-lbl">Coins 🪙</div></div>
+        <div class="stat-box"><div class="stat-num" id="p-streak">0</div><div class="stat-lbl">Day Streak 🔥</div></div>
+      </div>
+      <div class="balls-row" id="p-balls"></div>
+    </div>
+    <div class="section-title">🏅 GYM BADGES — KANTO</div>
+    <div class="badges-row" id="p-gym-badges"></div>
+    <div style="font-size:12px;color:#555;margin-bottom:16px;" id="p-badge-count"></div>
+    <div class="section-title">⭐ LEGENDARY BOSS VICTORIES</div>
+    <div class="trophy-grid" id="p-leg-trophies"></div>
+    <div class="section-title">⚔️ INVASION VICTORIES</div>
+    <div class="trophy-grid" id="p-inv-trophies"></div>
+    <div class="pkm-section-title" id="p-dex-title">POKEMON COLLECTION</div>
+    <div id="p-grid"></div>
+  </div>
+
+  <div class="lb-section">
+    <div class="section-title">🏆 GLOBAL LEADERBOARDS</div>
+    <div class="lb-tabs">
+      <div class="lb-tab active" onclick="showLb('caught',event)">Most Caught</div>
+      <div class="lb-tab" onclick="showLb('guessed',event)">Most Guessed</div>
+      <div class="lb-tab" onclick="showLb('wins',event)">Battle Wins</div>
+      <div class="lb-tab" onclick="showLb('points',event)">Most Coins</div>
+      <div class="lb-tab" onclick="showLb('badges',event)">Gym Badges</div>
+      <div class="lb-tab" onclick="showLb('trophies',event)">Boss Trophies</div>
+    </div>
+    <div id="lb-card"><div class="loading">Loading...</div></div>
+  </div>
+
+</div>
+
+<!-- ===================== FNF TAB ===================== -->
+<div class="tab-content" id="fnf-tab">
+<div class="fnf-wrap">
+
+  <!-- BELT HERO -->
+  <div class="fnf-belt-hero">
+    <div class="belt-svg-big">
+      <svg width="80" height="50" viewBox="0 0 80 50">
+        <rect x="3" y="10" width="74" height="30" rx="7" fill="#92400e" stroke="#d97706" stroke-width="1.5"/>
+        <rect x="20" y="14" width="40" height="22" rx="4" fill="#b45309"/>
+        <rect x="25" y="6" width="30" height="38" rx="9" fill="#d97706" stroke="#fbbf24" stroke-width="2"/>
+        <rect x="30" y="11" width="20" height="28" rx="5" fill="#fbbf24"/>
+        <text x="40" y="25" text-anchor="middle" font-size="7" font-weight="700" fill="#92400e" font-family="'Press Start 2P',monospace">FNF</text>
+        <text x="40" y="34" text-anchor="middle" font-size="5" fill="#92400e" font-family="monospace">CHAMP</text>
+        <circle cx="12" cy="25" r="6" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+        <circle cx="68" cy="25" r="6" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+        <circle cx="12" cy="25" r="3" fill="#d97706"/>
+        <circle cx="68" cy="25" r="3" fill="#d97706"/>
+      </svg>
+    </div>
+    <div class="belt-hero-info">
+      <div class="belt-hero-title">FNF CHAMPIONSHIP BELT</div>
+      <div id="fnf-belt-name" class="belt-hero-name belt-vacant">VACANT</div>
+      <div id="fnf-belt-defs" class="belt-hero-defs">First fight of the night crowns a champion!</div>
+    </div>
+    <div style="text-align:right;min-width:140px;">
+      <div style="font-size:12px;color:rgba(255,255,255,.3);margin-bottom:4px;">want the belt?</div>
+      <div style="font-family:'Press Start 2P',monospace;font-size:9px;color:#fbbf24;">!challenge</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.2);margin-top:8px;">in Twitch chat</div>
+    </div>
+  </div>
+
+  <!-- FIGHTER LOOKUP -->
+  <div class="fnf-section-title">⚔ FIGHTER LOOKUP</div>
+  <div class="fnf-lookup">
+    <div class="fnf-lookup-title">SEARCH YOUR STATS</div>
+    <div class="fnf-search-box">
+      <input type="text" id="fnf-search" placeholder="Enter Twitch username..." />
+      <button onclick="fnfLookup()">SEARCH</button>
+    </div>
+    <div id="fnf-error">Fighter not found — join a fight to get on the board!</div>
+    <div id="fnf-profile">
+      <div class="fnf-stats-grid" style="margin-top:16px;">
+        <div class="fnf-stat"><div class="fnf-stat-num" id="fnf-wins">0</div><div class="fnf-stat-lbl">Fights Won</div></div>
+        <div class="fnf-stat"><div class="fnf-stat-num" id="fnf-coins">0</div><div class="fnf-stat-lbl">FNF Coins</div></div>
+        <div class="fnf-stat"><div class="fnf-stat-num" id="fnf-fought">0</div><div class="fnf-stat-lbl">Total Fights</div></div>
+        <div class="fnf-stat"><div class="fnf-stat-num" id="fnf-belts">0</div><div class="fnf-stat-lbl">Belts Held</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY -->
+  <div class="fnf-section-title">📋 HOW TO PLAY — ALL COMMANDS</div>
+  <div class="howto-grid">
+
+    <div class="howto-card">
+      <div class="howto-card-title">STARTING A FIGHT</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!fight @user</div>
+        <div class="cmd-desc">Challenge someone. Both players pick a fighter in 30 seconds.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!fight @user auto</div>
+        <div class="cmd-desc">Skip character select — random fighters assigned instantly.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!fight @user mirror</div>
+        <div class="cmd-desc">Both players use the same random character. Pure skill test.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!accept</div>
+        <div class="cmd-desc">Accept an incoming challenge within 60 seconds.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!decline</div>
+        <div class="cmd-desc">Decline a challenge. No penalty.</div>
+      </div>
+    </div>
+
+    <div class="howto-card">
+      <div class="howto-card-title">PICKING YOUR FIGHTER</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!pick [name]</div>
+        <div class="cmd-desc">Choose your character during the 30 second window. Example: !pick goku</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!random</div>
+        <div class="cmd-desc">Let the system pick a random character for you.</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.25);line-height:1.6;">
+        If you don't pick in time, a character is auto-assigned for you.
+      </div>
+    </div>
+
+    <div class="howto-card">
+      <div class="howto-card-title">FIGHT MOVES (15 second window each round)</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!light</div>
+        <div class="cmd-desc">Fast attack. Always lands. Low damage (6–14).</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!heavy</div>
+        <div class="cmd-desc">Slow attack. High damage (18–32). Can miss 20% of the time.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!special</div>
+        <div class="cmd-desc">Signature move. Very high damage (28–44). Needs 30% meter.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!super</div>
+        <div class="cmd-desc">Ultimate attack (55–90 dmg). Needs FULL meter. Character ability activates.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!taunt</div>
+        <div class="cmd-desc">No damage. Builds your super meter +25%. Reduces enemy meter.</div>
+      </div>
+    </div>
+
+    <div class="howto-card">
+      <div class="howto-card-title">CHAMPIONSHIP BELT</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!challenge</div>
+        <div class="cmd-desc">Challenge the current FNF Champion. They must accept within 60 seconds or forfeit the title.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!belt</div>
+        <div class="cmd-desc">See who the current champion is and their defense count.</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.25);line-height:1.6;">
+        The first fight of the night crowns the champion. Hold the belt as long as you can defend it.
+      </div>
+    </div>
+
+    <div class="howto-card">
+      <div class="howto-card-title">COINS &amp; BETTING</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!bet @user [coins]</div>
+        <div class="cmd-desc">Bet on a fighter during any active fight. Min 10 coins. Win = 2× back.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!coins</div>
+        <div class="cmd-desc">Check your FNF coin balance.</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.25);line-height:1.6;">
+        Earn coins: watch stream (+5 per 5 min) · win fights (+150) · correct bets (2×).
+      </div>
+    </div>
+
+    <div class="howto-card">
+      <div class="howto-card-title">INFO COMMANDS</div>
+      <div class="cmd-row">
+        <div class="cmd-key">!roster</div>
+        <div class="cmd-desc">See all available fighters in chat.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!vaulttime</div>
+        <div class="cmd-desc">Check how long the Hybrid class has been in the vault.</div>
+      </div>
+      <div class="cmd-row">
+        <div class="cmd-key">!fnfhelp</div>
+        <div class="cmd-desc">Quick command list posted in chat.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- HYBRID VAULT NOTE -->
+  <div class="vault-note" id="fnf-vault-note">
+    <div style="font-size:20px;flex-shrink:0;">⚡</div>
+    <div class="vault-note-text" id="fnf-vault-text">
+      <strong style="color:#c4b5fd;">Ichigo &amp; Zuko — Launch Exclusives</strong><br>
+      The Hybrid class is available for a limited time during the launch window. Play them while you can — once they enter the vault they become silhouettes and nobody knows when they return.
+    </div>
+    <div class="vault-note-badge" id="fnf-vault-badge">AVAILABLE NOW</div>
+  </div>
+
+  <!-- FIGHTER ROSTER -->
+  <div class="fnf-section-title">🥋 FIGHTER ROSTER</div>
+  <div class="fnf-roster-grid" id="fnf-roster"></div>
+
+  <!-- FNF LEADERBOARD -->
+  <div class="fnf-section-title">🏆 FNF LEADERBOARD</div>
+  <div class="fnf-lb-tabs">
+    <div class="fnf-lb-tab active" onclick="showFnfLb('wins',event)">Fight Wins</div>
+    <div class="fnf-lb-tab" onclick="showFnfLb('coins',event)">Most Coins</div>
+    <div class="fnf-lb-tab" onclick="showFnfLb('belts',event)">Belt Defenses</div>
+  </div>
+  <div id="fnf-lb-card"><div class="loading" style="color:#444;">FNF data loads once fights begin on stream.</div></div>
+
+</div>
+</div>
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(tab+'-tab').classList.add('active');
+  document.getElementById('tab-'+tab+'-btn').classList.add('active');
+  if(tab==='fnf') buildFnfRoster();
+  // update URL hash silently
+  history.replaceState(null,'','#'+tab);
+}
+
+// open correct tab from URL hash
+window.addEventListener('DOMContentLoaded',()=>{
+  if(location.hash==='#fnf') switchTab('fnf');
+  else switchTab('pkm');
+});
+
+// ============================================================
+// POKEMON DATA
+// ============================================================
+const JSONBIN_ID  = '69d45fe9aaba882197cf971b';
+const JSONBIN_KEY = '$2a$10$nk9y7wSGAewuGXTJuUG4yObgnjMhyRmLlnZYjOSMrgyIh1g71hMlW';
+
+const KANTO_GYMS=[
+  {id:'boulder',icon:'🪨',name:'Boulder Badge',gym:'Pewter'},
+  {id:'cascade', icon:'💧',name:'Cascade Badge',gym:'Cerulean'},
+  {id:'thunder', icon:'⚡',name:'Thunder Badge',gym:'Vermilion'},
+  {id:'rainbow', icon:'🌿',name:'Rainbow Badge',gym:'Celadon'},
+  {id:'soul',    icon:'☠️',name:'Soul Badge',   gym:'Fuchsia'},
+  {id:'marsh',   icon:'🔮',name:'Marsh Badge',  gym:'Saffron'},
+  {id:'volcano', icon:'🌋',name:'Volcano Badge',gym:'Cinnabar'},
+  {id:'earth',   icon:'🌍',name:'Earth Badge',  gym:'Viridian'},
+];
+const LEGENDARY_IDS=new Set([144,145,146,150,151,243,244,245,249,250,251,377,378,379,380,381,382,383,384,385,386,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,638,639,640,641,642,643,644,645,646,647,648,649,716,717,718,719,720,721,785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,801,802,803,804,805,806,807,808,809,888,889,890,891,892,893,894,895,896,897,898]);
+
+function fmt(n){return n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ');}
+function getTrainerRank(p){
+  const c=p.caught||0;
+  if(c>=100)return '🌟 POKEMON MASTER';
+  if(c>=50) return '💎 ELITE TRAINER';
+  if(c>=25) return '🔥 ACE TRAINER';
+  if(c>=10) return '⭐ TRAINER';
+  if(c>=5)  return '🌱 ROOKIE';
+  return '🥚 BEGINNER';
+}
+async function loadAllPlayers(){
+  try{
+    const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY}});
+    const d=await r.json();
+    return d?.record?.players||{};
+  }catch(e){return {};}
+}
+async function lookupUser(){
+  const username=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!username)return;
+  document.getElementById('error-msg').style.display='none';
+  document.getElementById('profile-section').style.display='none';
+  document.getElementById('p-grid').innerHTML='<div class="loading">Loading...</div>';
+  const allData=await loadAllPlayers();
+  const key=Object.keys(allData).find(k=>k.toLowerCase()===username);
+  const profile=allData[key];
+  if(!profile){document.getElementById('error-msg').style.display='block';return;}
+  document.getElementById('p-name').textContent=key.toUpperCase()+"'S POKEDEX";
+  document.getElementById('p-badge').textContent=getTrainerRank(profile);
+  document.getElementById('p-caught').textContent=profile.caught||0;
+  document.getElementById('p-dex').textContent=profile.pokedex?.length||0;
+  document.getElementById('p-guessed').textContent=profile.guessed||0;
+  document.getElementById('p-wins').textContent=profile.wins||0;
+  document.getElementById('p-coins').textContent=(profile.points||0).toLocaleString();
+  document.getElementById('p-streak').textContent=profile.dailyStreak||0;
+  document.getElementById('p-dex-title').textContent=`POKEMON COLLECTION (${profile.pokedex?.length||0})`;
+  const balls=profile.balls||{};
+  document.getElementById('p-balls').innerHTML=[
+    ['🔴','Pokeball',balls.pokeball||0],['🔵','Greatball',balls.greatball||0],
+    ['🟡','Ultraball',balls.ultraball||0],['⚪','Masterball',balls.masterball||0],
+  ].map(([e,n,c])=>`<div class="ball-chip"><span>${e}</span><small>${n} x${c}</small></div>`).join('');
+  const badges=profile.badges||{};
+  const badgeCount=Object.keys(badges).length;
+  document.getElementById('p-badge-count').textContent=`${badgeCount}/8 Kanto badges earned${badgeCount===8?' — Challenge the Elite 4!':''}`;
+  document.getElementById('p-gym-badges').innerHTML=KANTO_GYMS.map(g=>{
+    const earned=!!badges[g.id];
+    const date=earned?new Date(badges[g.id]).toLocaleDateString():'';
+    return `<div class="gym-badge-wrap"><div class="gym-badge ${earned?'earned':'locked'}" title="${g.name}${earned?' — earned '+date:' (locked)'}">${g.icon}</div><div class="gym-badge-name" style="color:${earned?'#FFD700':'#333'}">${g.name.replace(' Badge','')}</div></div>`;
+  }).join('');
+  const legT=profile.legendaryTrophies||[];
+  const legEl=document.getElementById('p-leg-trophies');
+  legEl.innerHTML=!legT.length?'<div class="empty-trophies">No legendary boss victories yet — join the next raid!</div>':legT.slice(0,12).map(t=>`<div class="trophy-card ${t.caught?'victory':''}"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${t.id}.png" onerror="this.style.display='none'"/><div class="trophy-info"><div class="trophy-name">${t.name}${t.caught?'<span class="trophy-caught-badge">CAUGHT!</span>':''}</div><div class="trophy-sub">${t.raiders} raiders • ${new Date(t.date).toLocaleDateString()}</div>${t.caught&&t.mvp===key?'<div style="font-size:10px;color:#FFD700;margin-top:2px;">🎯 You threw the Masterball!</div>':''}</div></div>`).join('');
+  const invT=profile.invasionTrophies||[];
+  const invEl=document.getElementById('p-inv-trophies');
+  invEl.innerHTML=!invT.length?'<div class="empty-trophies">No invasion victories yet — join the next one!</div>':invT.slice(0,12).map(t=>`<div class="trophy-card invasion ${t.defeated===3?'victory':''}"><div style="font-size:28px;">⚔️</div><div class="trophy-info"><div class="trophy-name">${t.defeated}/3 Bosses Defeated</div><div class="trophy-sub">${(t.bosses||[]).join(', ')}</div><div class="trophy-sub">${t.raiders} raiders • ${new Date(t.date).toLocaleDateString()}</div></div></div>`).join('');
+  const grid=document.getElementById('p-grid');
+  grid.innerHTML='';
+  if(!profile.pokedex?.length){
+    grid.innerHTML='<div class="empty"><span class="empty-icon">😢</span>No Pokemon caught yet!<br>Watch the stream and guess to start!</div>';
+  } else {
+    const sorted=[...profile.pokedex].sort((a,b)=>a-b);
+    sorted.forEach(id=>{
+      const isLeg=LEGENDARY_IDS.has(id);
+      const card=document.createElement('div');
+      card.className='pkm-card'+(isLeg?' legendary':'');
+      card.innerHTML=`<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png"/><div class="num">#${String(id).padStart(3,'0')}</div><div class="name">...</div>${isLeg?'<div style="font-size:9px;color:#9b59b6;margin-top:2px;">LEGENDARY</div>':''}`;
+      grid.appendChild(card);
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r=>r.json()).then(d=>card.querySelector('.name').textContent=fmt(d.name)).catch(()=>card.querySelector('.name').textContent='???');
+    });
+  }
+  document.getElementById('profile-section').style.display='block';
+  document.getElementById('profile-section').scrollIntoView({behavior:'smooth'});
+}
+let currentCat='caught';
+async function showLb(cat,event){
+  currentCat=cat;
+  document.querySelectorAll('.lb-tab').forEach(t=>t.classList.remove('active'));
+  if(event) event.target.classList.add('active');
+  const card=document.getElementById('lb-card');
+  card.innerHTML='<div class="loading">Loading...</div>';
+  const allData=await loadAllPlayers();
+  let entries;
+  if(cat==='badges') entries=Object.entries(allData).map(([name,p])=>({name,value:Object.keys(p.badges||{}).length,profile:p})).filter(e=>e.value>0);
+  else if(cat==='trophies') entries=Object.entries(allData).map(([name,p])=>({name,value:(p.legendaryTrophies?.length||0)+(p.invasionTrophies?.length||0),profile:p})).filter(e=>e.value>0);
+  else entries=Object.entries(allData).map(([name,p])=>({name,value:p[cat]||0,profile:p})).filter(e=>e.value>0);
+  entries=entries.sort((a,b)=>b.value-a.value).slice(0,10);
+  if(!entries.length){card.innerHTML='<div class="loading">No data yet — start playing!</div>';return;}
+  const medals=['🥇','🥈','🥉'],classes=['gold','silver','bronze'];
+  const units={caught:'caught',guessed:'guessed',wins:'battle wins',points:'coins',badges:'gym badges',trophies:'boss trophies'};
+  card.innerHTML=entries.map((e,i)=>{
+    const sprite=e.profile.pokedex?.length?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${e.profile.pokedex[Math.floor(Math.random()*Math.min(e.profile.pokedex.length,5))]}.png`:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${(i%151)+1}.png`;
+    const badgesOwned=Object.keys(e.profile.badges||{});
+    const gymIcons=KANTO_GYMS.filter(g=>badgesOwned.includes(g.id)).map(g=>g.icon).join('');
+    return `<div class="lb-row ${classes[i]||''}"><div class="lb-medal">${medals[i]||'#'+(i+1)}</div><img class="lb-sprite" src="${sprite}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png'"/><div style="flex:1;"><div class="lb-name">${e.name}</div><div class="lb-sub">${e.profile.pokedex?.length||0} unique • ${getTrainerRank(e.profile)}</div>${gymIcons?`<div class="lb-badges-row" style="font-size:14px;">${gymIcons}</div>`:''}</div><div class="lb-value"><div class="lb-num">${typeof e.value==='number'?e.value.toLocaleString():e.value}</div><div class="lb-unit">${units[cat]}</div></div></div>`;
+  }).join('');
+}
+document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')lookupUser();});
+document.getElementById('fnf-search').addEventListener('keydown',e=>{if(e.key==='Enter')fnfLookup();});
+
+// ============================================================
+// FNF SPRITE DRAWING
+// ============================================================
+function spr(canvas,fn,scale){
+  canvas.width=32;canvas.height=48;
+  canvas.style.width=(32*scale)+'px';canvas.style.height=(48*scale)+'px';
+  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;
+  const p=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h)};
+  fn(p);
+}
+function silhouette(canvas,fn,scale){
+  spr(canvas,fn,scale);
+  const ctx=canvas.getContext('2d');
+  ctx.globalCompositeOperation='source-in';
+  ctx.fillStyle='#1a0a1a';ctx.fillRect(0,0,32,48);
+  ctx.globalCompositeOperation='source-over';
+}
+
+function goku(p){p(12,0,8,1,'#ca8a04');p(10,1,12,1,'#ca8a04');p(9,1,2,3,'#fbbf24');p(10,2,5,2,'#fef08a');p(15,2,6,2,'#fbbf24');p(8,3,2,4,'#fbbf24');p(22,3,2,3,'#fbbf24');p(10,4,12,1,'#fde68a');p(9,5,14,5,'#fde68a');p(11,6,3,2,'#1e3a5f');p(18,6,3,2,'#1e3a5f');p(9,6,1,3,'#fde68a');p(22,6,1,3,'#fde68a');p(13,10,6,2,'#fde68a');p(8,12,16,1,'#7c2d12');p(7,13,18,8,'#ea580c');p(11,14,10,2,'#1d4ed8');p(6,13,2,8,'#ea580c');p(24,13,2,8,'#ea580c');p(5,19,3,2,'#1d4ed8');p(24,19,3,2,'#1d4ed8');p(5,21,3,3,'#fde68a');p(24,21,3,3,'#fde68a');p(9,23,14,12,'#1e3a5f');p(9,33,6,2,'#172554');p(17,33,6,2,'#172554');p(8,35,7,6,'#1a1a1a');p(17,35,7,6,'#1a1a1a');}
+function tanjiro(p){p(10,0,12,5,'#1a1a1a');p(9,1,14,5,'#d4a574');p(6,0,4,1,'#15803d');p(11,6,3,2,'#1e3a5f');p(17,6,3,2,'#1e3a5f');p(9,5,14,5,'#d4a574');p(9,5,14,22,'#1e3a1e');p(9,12,14,1,'#15803d');p(7,13,2,8,'#1e3a1e');p(23,13,2,8,'#1e3a1e');p(6,14,2,6,'#1e3a1e');p(24,14,2,6,'#1e3a1e');p(6,20,3,3,'#d4a574');p(23,20,3,3,'#d4a574');p(9,35,6,8,'#1e3a1e');p(17,35,6,8,'#1e3a1e');p(8,42,7,3,'#1a1a1a');p(17,42,7,3,'#1a1a1a');}
+function saitama(p){p(10,1,12,9,'#fde68a');p(9,3,14,7,'#fde68a');p(11,6,4,3,'#d4a574');p(17,6,4,3,'#d4a574');p(12,7,2,1,'#1a1a1a');p(18,7,2,1,'#1a1a1a');p(13,10,6,3,'#fde68a');p(7,13,18,22,'#fef9c3');p(5,13,3,8,'#fef9c3');p(24,13,3,8,'#fef9c3');p(4,21,4,5,'#dc2626');p(24,21,4,5,'#dc2626');p(8,26,16,2,'#ca8a04');p(8,28,16,14,'#fef9c3');p(7,40,8,5,'#dc2626');p(17,40,8,5,'#dc2626');}
+function killua(p){p(10,0,12,6,'#e2e8f0');p(9,2,14,5,'#f8fafc');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(9,5,14,5,'#fde68a');p(8,12,16,22,'#1e293b');p(6,13,3,8,'#1e293b');p(23,13,3,8,'#1e293b');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(9,34,6,8,'#1e293b');p(17,34,6,8,'#1e293b');p(8,41,7,4,'#0f172a');p(17,41,7,4,'#0f172a');}
+function leonardo(p){p(10,0,12,5,'#15803d');p(9,2,14,5,'#fde68a');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(8,12,16,22,'#15803d');p(6,13,3,8,'#15803d');p(23,13,3,8,'#15803d');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(14,5,2,9,'#e5e7eb');p(24,5,2,9,'#e5e7eb');p(9,34,6,8,'#15803d');p(17,34,6,8,'#15803d');p(8,41,7,4,'#052e16');p(17,41,7,4,'#052e16');}
+function jack(p){p(13,0,6,3,'#1a1a1a');p(12,1,8,3,'#1a1a1a');p(10,4,12,8,'#c8956c');p(9,5,14,6,'#c8956c');p(11,7,4,2,'#1a1a1a');p(17,7,4,2,'#1a1a1a');p(7,14,18,20,'#f8fafc');p(4,14,4,10,'#f8fafc');p(3,23,4,3,'#c8956c');p(25,23,4,3,'#c8956c');p(9,22,14,3,'#1a1a1a');p(24,10,2,20,'#e5e7eb');p(24,30,2,8,'#92400e');p(8,34,16,11,'#1a1a1a');p(8,43,7,3,'#c8956c');p(17,43,7,3,'#c8956c');}
+function ryu(p){p(13,0,6,3,'#f8fafc');p(12,1,8,5,'#d4a574');p(11,5,3,2,'#1a1a1a');p(18,5,3,2,'#1a1a1a');p(7,10,18,20,'#dc2626');p(5,12,3,8,'#dc2626');p(24,12,3,8,'#dc2626');p(4,19,4,3,'#f8fafc');p(24,19,4,3,'#f8fafc');p(9,22,14,3,'#ffffff');p(9,30,6,12,'#1a1a1a');p(17,30,6,12,'#1a1a1a');p(8,41,7,5,'#1a1a1a');p(17,41,7,5,'#1a1a1a');}
+function johnny(p){p(12,0,8,5,'#f5c842');p(11,1,10,5,'#fde68a');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(7,12,18,24,'#1a1a1a');p(5,13,3,8,'#1a1a1a');p(24,13,3,8,'#1a1a1a');p(4,20,3,3,'#fde68a');p(25,20,3,3,'#fde68a');p(9,36,6,8,'#1a1a1a');p(17,36,6,8,'#1a1a1a');p(8,43,7,3,'#1a1a1a');p(17,43,7,3,'#1a1a1a');}
+function ichigo(p){p(5,0,6,4,'#f97316');p(10,0,3,4,'#f97316');p(11,2,9,3,'#fb923c');p(10,5,12,6,'#fde68a');p(11,5,4,1,'#92400e');p(17,5,4,1,'#92400e');p(11,7,4,2,'#1a1a1a');p(17,7,4,2,'#1a1a1a');p(7,13,18,22,'#1a1a1a');p(5,13,3,10,'#1a1a1a');p(24,13,3,10,'#1a1a1a');p(4,22,3,3,'#fde68a');p(25,22,3,3,'#fde68a');p(22,24,2,12,'#92400e');p(9,35,14,8,'#1a1a1a');p(9,42,6,3,'#f8fafc');p(17,42,6,3,'#f8fafc');}
+function zuko(p){p(13,0,6,3,'#1a1a1a');p(12,1,8,4,'#1a1a1a');p(15,1,2,1,'#fbbf24');p(10,4,12,8,'#fde68a');p(10,6,4,1,'#dc2626');p(10,7,3,2,'#b91c1c');p(8,14,16,1,'#7f1d1d');p(7,15,18,15,'#7f1d1d');p(10,15,12,1,'#b45309');p(13,17,6,5,'#dc2626');p(6,14,3,4,'#92400e');p(23,14,3,4,'#92400e');p(5,18,3,8,'#7f1d1d');p(24,18,3,8,'#7f1d1d');p(4,27,3,3,'#fde68a');p(25,27,3,3,'#fde68a');p(3,27,1,2,'#f97316');p(28,27,1,2,'#f97316');p(9,30,14,13,'#1a1a2e');p(8,41,7,4,'#7f1d1d');p(17,41,7,4,'#7f1d1d');}
+function frieza(p){p(10,0,12,6,'#f8fafc');p(9,2,14,5,'#f8fafc');p(11,6,3,2,'#7c3aed');p(17,6,3,2,'#7c3aed');p(8,12,16,22,'#f8fafc');p(6,13,3,8,'#f8fafc');p(23,13,3,8,'#f8fafc');p(5,9,6,1,'#7c3aed');p(21,9,6,1,'#7c3aed');p(4,10,4,2,'#7c3aed');p(24,10,4,2,'#7c3aed');p(9,34,6,8,'#7c3aed');p(17,34,6,8,'#7c3aed');p(8,41,7,4,'#4c1d95');p(17,41,7,4,'#4c1d95');}
+function shredder(p){p(9,0,14,8,'#374151');p(10,0,12,7,'#4b5563');p(11,1,10,6,'#6b7280');p(9,0,2,2,'#9ca3af');p(21,0,2,2,'#9ca3af');p(10,5,12,3,'#1a1a1a');p(11,6,4,2,'#dc2626');p(17,6,4,2,'#dc2626');p(5,9,22,4,'#4c1d95');p(4,10,24,25,'#3b0764');p(9,11,14,22,'#374151');p(6,11,4,4,'#6b7280');p(5,11,2,3,'#9ca3af');p(22,11,4,4,'#6b7280');p(25,11,2,3,'#9ca3af');p(6,15,3,10,'#374151');p(23,15,3,10,'#374151');p(4,24,4,2,'#9ca3af');p(24,24,4,2,'#9ca3af');p(9,33,14,10,'#374151');p(8,41,7,4,'#374151');p(17,41,7,4,'#374151');p(7,43,2,2,'#9ca3af');p(23,43,2,2,'#9ca3af');}
+function aku(p){p(9,0,14,6,'#1a1a1a');p(8,1,16,5,'#1a1a1a');p(4,0,4,3,'#dc2626');p(24,0,4,3,'#dc2626');p(11,6,4,2,'#fef08a');p(17,6,4,2,'#fef08a');p(8,8,16,26,'#1a1a1a');p(6,10,2,6,'#1a1a1a');p(24,10,2,6,'#1a1a1a');p(4,12,3,3,'#dc2626');p(25,12,3,3,'#dc2626');p(8,34,7,8,'#1a1a1a');p(17,34,7,8,'#1a1a1a');}
+function dio(p){p(10,0,12,6,'#fde68a');p(5,0,6,2,'#92400e');p(21,0,6,2,'#92400e');p(10,0,12,1,'#f5c842');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(8,12,16,22,'#f5c842');p(6,13,3,8,'#f5c842');p(23,13,3,8,'#f5c842');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(10,12,12,1,'#ca8a04');p(10,22,12,2,'#ca8a04');p(9,34,6,8,'#f5c842');p(17,34,6,8,'#f5c842');p(8,41,7,4,'#713f12');p(17,41,7,4,'#713f12');}
+
+const ROSTER=[
+  {id:'goku',name:'Goku',series:'Dragon Ball Z',cls:'hero',rar:'legendary',fn:goku,locked:false},
+  {id:'tanjiro',name:'Tanjiro',series:'Demon Slayer',cls:'hero',rar:'uncommon',fn:tanjiro,locked:false},
+  {id:'saitama',name:'Saitama',series:'One Punch Man',cls:'hero',rar:'legendary',fn:saitama,locked:false},
+  {id:'killua',name:'Killua',series:'HunterxHunter',cls:'hero',rar:'rare',fn:killua,locked:false},
+  {id:'leo',name:'Leonardo',series:'TMNT 1987',cls:'hero',rar:'uncommon',fn:leonardo,locked:false},
+  {id:'jack',name:'Sam. Jack',series:'CN 2001',cls:'hero',rar:'rare',fn:jack,locked:false},
+  {id:'ryu',name:'Ryu',series:'Street Fighter',cls:'hero',rar:'rare',fn:ryu,locked:false},
+  {id:'johnny',name:'J. Bravo',series:'CN 1997',cls:'hero',rar:'common',fn:johnny,locked:false},
+  {id:'ichigo',name:'Ichigo',series:'Bleach',cls:'hybrid',rar:'rare',fn:ichigo,locked:false,hybrid:true},
+  {id:'zuko',name:'Zuko',series:'Avatar',cls:'hybrid',rar:'rare',fn:zuko,locked:false,hybrid:true},
+  {id:'frieza',name:'Frieza',series:'Dragon Ball Z',cls:'villain',rar:'legendary',fn:frieza,locked:false},
+  {id:'shredder',name:'Shredder',series:'TMNT 1987',cls:'villain',rar:'rare',fn:shredder,locked:false},
+  {id:'aku',name:'Aku',series:'Sam. Jack',cls:'villain',rar:'legendary',fn:aku,locked:false},
+  {id:'dio',name:'DIO',series:"JoJo's",cls:'villain',rar:'legendary',fn:dio,locked:false},
+  {id:'lock1',locked:true,hint:'Watch 5 hours'},
+  {id:'lock2',locked:true,hint:'Win 3 in a row'},
+  {id:'lock3',locked:true,hint:'Defeat a boss raid'},
+  {id:'lock4',locked:true,hint:'Win a tournament'},
+  {id:'lock5',locked:true,hint:'Spend 1500 coins'},
+  {id:'lock6',locked:true,hint:'Follow the channel'},
+];
+
+// State for vault (reads from localStorage for persistence across visits)
+let FNF_VAULTED = localStorage.getItem('fnf_vaulted')==='true';
+
+function buildFnfRoster(){
+  const grid = document.getElementById('fnf-roster');
+  if(grid.dataset.built) return;
+  grid.dataset.built='1';
+
+  // Update vault note
+  updateVaultNote();
+
+  ROSTER.forEach(ch => {
+    const card = document.createElement('div');
+    if(ch.locked){
+      card.className='fnf-char-card locked-card';
+      card.innerHTML=`<canvas width="32" height="48" class="px" style="width:42px;height:63px" id="sil_${ch.id}"></canvas><div class="fnf-char-name" style="color:rgba(255,255,255,.15)">???</div><div class="fnf-char-series" style="font-size:8px;color:rgba(255,255,255,.1);">${ch.hint}</div><div class="fnf-char-class cls-locked">locked</div>`;
+    } else if(ch.hybrid && FNF_VAULTED){
+      card.className='fnf-char-card locked-card';
+      card.innerHTML=`<canvas width="32" height="48" class="px" style="width:42px;height:63px" id="sil_${ch.id}"></canvas><div class="fnf-char-name" style="color:rgba(124,58,237,.3)">${ch.name}</div><div class="fnf-char-series">${ch.series}</div><div class="fnf-char-class cls-locked">vaulted 🔒</div>`;
+    } else {
+      const borderCls = ch.cls==='hybrid'?'hybrid-card':ch.cls==='villain'?'villain-card':'unlocked';
+      card.className=`fnf-char-card ${borderCls}`;
+      const rarCol={legendary:'#fbbf24',rare:'#c4b5fd',uncommon:'#93c5fd',common:'#94a3b8'};
+      card.innerHTML=`${ch.hybrid&&!FNF_VAULTED?'<div class="launch-badge">LAUNCH</div>':''}<canvas width="32" height="48" class="px" style="width:42px;height:63px" id="sp_${ch.id}"></canvas><div class="fnf-char-name">${ch.name}</div><div class="fnf-char-series">${ch.series}</div><div class="fnf-char-class cls-${ch.cls}">${ch.cls}</div><div style="font-size:8px;color:${rarCol[ch.rar]||'#94a3b8'};margin-top:2px;">${ch.rar}</div>`;
+    }
+    grid.appendChild(card);
+
+    setTimeout(()=>{
+      const c = document.getElementById((ch.locked||(ch.hybrid&&FNF_VAULTED)?'sil_':'sp_')+ch.id);
+      if(!c||!ch.fn) return;
+      if(ch.locked||(ch.hybrid&&FNF_VAULTED)) silhouette(c,ch.fn||goku,1.3);
+      else spr(c,ch.fn,1.3);
+    },50);
+  });
+}
+
+function updateVaultNote(){
+  const note = document.getElementById('fnf-vault-note');
+  const text = document.getElementById('fnf-vault-text');
+  const badge = document.getElementById('fnf-vault-badge');
+  if(FNF_VAULTED){
+    note.style.background='rgba(255,255,255,.03)';
+    note.style.borderColor='rgba(255,255,255,.06)';
+    text.innerHTML='<strong style="color:rgba(255,255,255,.3);">Hybrid class — Vaulted</strong><br><span style="color:rgba(255,255,255,.25);">Ichigo &amp; Zuko are in the vault. Nobody knows when they return. Type !vaulttime in chat to see how long.</span>';
+    badge.textContent='VAULTED 🔒';
+    badge.style.background='rgba(255,255,255,.05)';
+    badge.style.color='rgba(255,255,255,.2)';
+    badge.style.borderColor='rgba(255,255,255,.08)';
+  }
+}
+
+// ============================================================
+// FNF FIGHTER LOOKUP (placeholder — connect to your data source)
+// ============================================================
+async function fnfLookup(){
+  const user = document.getElementById('fnf-search').value.trim().toLowerCase();
+  if(!user) return;
+  document.getElementById('fnf-error').style.display='none';
+  document.getElementById('fnf-profile').style.display='none';
+  // Placeholder — swap this fetch for your actual FNF data source
+  document.getElementById('fnf-wins').textContent='--';
+  document.getElementById('fnf-coins').textContent='--';
+  document.getElementById('fnf-fought').textContent='--';
+  document.getElementById('fnf-belts').textContent='--';
+  document.getElementById('fnf-profile').style.display='block';
+}
+
+// ============================================================
+// FNF LEADERBOARD (placeholder)
+// ============================================================
+function showFnfLb(cat,event){
+  document.querySelectorAll('.fnf-lb-tab').forEach(t=>t.classList.remove('active'));
+  if(event) event.target.classList.add('active');
+  document.getElementById('fnf-lb-card').innerHTML='<div class="loading" style="color:#444;">FNF leaderboard data will appear here once fights begin on stream.</div>';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+showLb('caught',null);
+</script>
+</body>
+</html>
