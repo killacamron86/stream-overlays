@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Friday Night Fights Overlay</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Exo+2:wght@400;700;900&display=swap');
+
+/* ── BASE ── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:transparent;overflow:hidden;
+  width:1920px;height:1080px;position:relative;
+  font-family:'Press Start 2P',monospace;
+}
+
+/* ── VAULT TICKER ── subtle top bar, always present during launch */
+#vault-ticker{
+  position:absolute;top:0;left:0;right:0;height:28px;
+  background:rgba(50,10,80,0.55);
+  border-bottom:2px solid rgba(167,139,250,0.5);
+  overflow:hidden;white-space:nowrap;
+  display:flex;align-items:center;z-index:100;
+}
+#vault-ticker.hidden{display:none}
+#vault-ticker-text{
+  display:inline-block;padding-left:1920px;
+  font-size:11px;color:#c4b5fd;letter-spacing:0.1em;
+  animation:tickerscroll 28s linear infinite;
+}
+@keyframes tickerscroll{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+
+/* ── VAULT CORNER BADGE ── after vault, top right subtle */
+#vault-badge{
+  position:absolute;top:38px;right:20px;
+  background:rgba(8,8,20,0.9);
+  border:1px solid rgba(167,139,250,0.35);
+  border-radius:8px;padding:6px 14px;
+  display:none;align-items:center;gap:8px;z-index:100;
+}
+#vault-badge.show{display:flex}
+.vb-dot{width:7px;height:7px;border-radius:50%;background:rgba(167,139,250,0.6)}
+.vb-text{font-size:10px;color:rgba(167,139,250,0.7);letter-spacing:0.08em}
+
+/* ── BELT DISPLAY ── top left, always visible */
+#belt-display{
+  position:absolute;top:38px;left:20px;
+  background:rgba(8,8,20,0.92);
+  border:2px solid rgba(212,167,74,0.7);
+  border-radius:10px;padding:10px 16px;
+  display:flex;align-items:center;gap:12px;z-index:90;
+  min-width:280px;
+}
+.belt-info{display:flex;flex-direction:column;gap:4px}
+.belt-title{font-size:10px;color:#FFD700;letter-spacing:0.08em}
+.belt-holder{font-size:16px;color:#FFD700;font-family:'Press Start 2P',monospace}
+.belt-defenses{font-size:11px;color:#fff;font-family:'Exo 2',sans-serif;font-weight:700}
+
+/* ── HUD STRIP ── bottom bar, fight active */
+#hud-strip{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(5,5,18,0.97);
+  border-top:3px solid #FFD700;
+  padding:10px 24px;height:110px;
+  display:flex;align-items:center;gap:20px;
+  z-index:90;
+}
+.fighter-hud{display:flex;align-items:center;gap:12px;flex:1}
+.fighter-hud.right{flex-direction:row-reverse}
+.hud-sprite{image-rendering:pixelated;flex-shrink:0}
+.hud-info{display:flex;flex-direction:column;gap:6px;flex:1}
+
+/* fighter name — big enough to read on mobile */
+.hud-name{
+  font-size:18px;color:#FFD700;
+  font-family:'Press Start 2P',monospace;
+  text-shadow:0 0 10px rgba(255,215,0,0.5);
+}
+.hud-name.right{text-align:right}
+
+.hud-class-badge{
+  display:inline-block;font-size:11px;font-weight:900;
+  padding:3px 10px;border-radius:99px;
+  font-family:'Exo 2',sans-serif;letter-spacing:0.05em;
+}
+.class-hero{background:#16a34a;color:#fff}
+.class-villain{background:#dc2626;color:#fff}
+.class-hybrid{background:#7c3aed;color:#fff}
+
+/* HP bars — thick and readable */
+.hud-bars{display:flex;flex-direction:column;gap:5px}
+.hp-bar-row{display:flex;align-items:center;gap:8px}
+.hp-bar-row.right{flex-direction:row-reverse}
+.bar-label{
+  font-size:13px;font-weight:900;color:#fff;
+  min-width:32px;font-family:'Exo 2',sans-serif;
+}
+.bar-label.right-txt{text-align:right}
+.hp-bar{flex:1;height:14px;background:rgba(255,255,255,0.12);border-radius:7px;overflow:hidden;border:1px solid rgba(255,255,255,0.2)}
+.hp-fill{height:100%;border-radius:7px;transition:width 0.4s ease}
+.hp-fill.green{background:#22c55e}
+.hp-fill.yellow{background:#f59e0b}
+.hp-fill.red{background:#ef4444}
+.hp-fill.r{float:right}
+.meter-bar{flex:1;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;border:1px solid rgba(167,139,250,0.3)}
+.meter-fill{height:100%;background:#a78bfa;border-radius:4px;transition:width 0.3s ease}
+.meter-fill.r{float:right}
+
+/* VS center */
+.hud-center{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  min-width:140px;
+}
+.vs-text{font-size:20px;color:#FFD700;text-shadow:0 0 12px rgba(255,215,0,0.6)}
+.round-badge{
+  font-size:13px;color:#fff;
+  background:rgba(255,255,255,0.12);
+  padding:4px 14px;border-radius:99px;
+  border:1px solid rgba(255,255,255,0.2);
+}
+
+/* ── STATUS BAR ── above HUD, instruction text */
+#status-bar{
+  position:absolute;bottom:110px;left:0;right:0;
+  background:rgba(5,5,18,0.92);
+  border-top:2px solid rgba(255,215,0,0.3);
+  padding:10px 24px;
+  display:none;align-items:center;justify-content:center;gap:20px;
+  z-index:89;
+}
+#status-bar.show{display:flex}
+#status-text{
+  font-size:15px;color:#fff;text-align:center;
+  font-family:'Exo 2',sans-serif;font-weight:700;letter-spacing:0.03em;
+}
+#status-timer{
+  font-size:20px;color:#FFD700;
+  font-family:'Press Start 2P',monospace;
+  min-width:50px;text-align:center;
+}
+
+/* ── MOVE LOG ── scrolling fight text above status */
+#move-log-bar{
+  position:absolute;bottom:158px;left:0;right:0;
+  background:rgba(5,5,18,0.7);
+  padding:8px 24px;
+  display:none;align-items:center;justify-content:center;
+  z-index:88;
+}
+#move-log-bar.show{display:flex}
+#move-log{
+  font-size:16px;color:#fff;text-align:center;
+  font-family:'Exo 2',sans-serif;font-weight:900;
+  letter-spacing:0.02em;
+  text-shadow:1px 1px 4px rgba(0,0,0,0.8);
+}
+
+/* ── KO FLASH ── */
+#ko-flash{
+  position:absolute;inset:0;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.6);
+  z-index:200;flex-direction:column;gap:20px;
+}
+#ko-flash.show{display:flex}
+#ko-text{
+  font-size:140px;color:#ef4444;letter-spacing:0.1em;
+  text-shadow:0 0 40px rgba(239,68,68,0.8),0 0 80px rgba(239,68,68,0.4);
+}
+#ko-winner{
+  font-size:36px;color:#FFD700;
+  text-shadow:0 0 20px rgba(255,215,0,0.6);
+}
+
+/* ── BELT WIN FLASH ── */
+#belt-flash{
+  position:absolute;inset:0;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.7);
+  z-index:200;flex-direction:column;gap:16px;
+}
+#belt-flash.show{display:flex}
+#bf-text{
+  font-size:38px;color:#FFD700;text-align:center;line-height:1.8;
+  text-shadow:0 0 30px rgba(255,215,0,0.7);
+}
+#bf-sub{
+  font-size:22px;color:#fff;
+  font-family:'Exo 2',sans-serif;font-weight:900;
+}
+
+/* ── VAULT ANIMATION ── */
+#vault-anim{
+  position:absolute;inset:0;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.8);
+  z-index:300;flex-direction:column;gap:30px;
+}
+#vault-anim.show{display:flex}
+.vault-sprites{display:flex;gap:80px;align-items:flex-end;justify-content:center}
+#vault-label{
+  font-size:32px;color:#c4b5fd;letter-spacing:0.14em;
+  text-shadow:0 0 20px rgba(167,139,250,0.6);
+}
+
+/* ── BELL RIPPLE ── */
+#bell-ripple{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:10px;height:10px;border-radius:50%;
+  background:transparent;border:4px solid #FFD700;
+  display:none;z-index:250;
+}
+#bell-ripple.ring{animation:bellring 0.7s ease-out forwards}
+@keyframes bellring{
+  0%{width:10px;height:10px;opacity:1;margin:-5px 0 0 -5px}
+  100%{width:400px;height:400px;opacity:0;margin:-200px 0 0 -200px}
+}
+
+/* ── CHAT LOG ── right side feed */
+#chat-log{
+  position:absolute;bottom:170px;right:24px;
+  display:flex;flex-direction:column;gap:6px;
+  max-width:480px;z-index:85;
+}
+.chat-msg{
+  padding:8px 14px;border-radius:6px;
+  background:rgba(5,5,18,0.92);
+  border-left:4px solid rgba(255,255,255,0.3);
+  color:#fff;
+  font-size:13px;
+  font-family:'Exo 2',sans-serif;font-weight:700;
+  animation:slidein 0.25s ease;
+  line-height:1.4;
+  text-shadow:1px 1px 3px rgba(0,0,0,0.9);
+}
+.chat-msg.system{border-left-color:#FFD700;color:#FFD700}
+.chat-msg.hybrid{border-left-color:#c4b5fd;color:#c4b5fd}
+.chat-msg.error{border-left-color:#ef4444;color:#fca5a5}
+@keyframes slidein{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── HOW TO PLAY ── shown when !fnf is active at idle */
+#howto{
+  position:absolute;top:50%;right:24px;
+  transform:translateY(-50%);
+  background:rgba(5,5,18,0.96);
+  border:2px solid rgba(255,215,0,0.5);
+  border-radius:12px;padding:20px 24px;
+  max-width:400px;z-index:80;
+  display:none;
+}
+#howto.show{display:block}
+.ht-title{
+  font-size:13px;color:#FFD700;margin-bottom:16px;
+  letter-spacing:0.1em;border-bottom:1px solid rgba(255,215,0,0.3);
+  padding-bottom:10px;
+}
+.ht-cmd{
+  display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;
+}
+.ht-key{
+  font-size:11px;color:#FFD700;
+  background:rgba(255,215,0,0.12);
+  border:1px solid rgba(255,215,0,0.3);
+  border-radius:5px;padding:4px 8px;
+  white-space:nowrap;flex-shrink:0;
+  min-width:130px;text-align:center;line-height:1.6;
+}
+.ht-desc{
+  font-size:13px;color:#fff;
+  font-family:'Exo 2',sans-serif;font-weight:700;
+  line-height:1.6;padding-top:2px;
+}
+.ht-section{
+  font-size:10px;color:#FFD700;letter-spacing:0.1em;
+  margin:14px 0 8px;border-top:1px solid rgba(255,215,0,0.2);
+  padding-top:10px;
+}
+
+/* ── IDLE SCREEN ── big center display when !fnf on but no fight */
+#idle-screen{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;display:none;z-index:70;
+}
+#idle-screen.show{display:block}
+.idle-title{
+  font-size:56px;color:#FFD700;margin-bottom:16px;
+  letter-spacing:0.06em;
+  text-shadow:0 0 30px rgba(255,215,0,0.5);
+}
+.idle-sub{
+  font-size:18px;color:#fff;
+  font-family:'Exo 2',sans-serif;font-weight:900;
+  letter-spacing:0.05em;
+  text-shadow:1px 1px 4px rgba(0,0,0,0.8);
+}
+.idle-commands{
+  margin-top:20px;display:flex;flex-direction:column;gap:8px;align-items:center;
+}
+.idle-cmd{
+  font-size:16px;color:#FFD700;
+  background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);
+  border-radius:6px;padding:6px 20px;
+  font-family:'Exo 2',sans-serif;font-weight:900;
+}
+
+canvas{image-rendering:pixelated}
+
+/* ── MAY 4TH STAR WARS AD ── bottom left corner, always visible */
+#sw-ad{
+  position:absolute;
+  bottom:120px;left:20px;
+  z-index:95;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  animation:swfloat 3s ease-in-out infinite;
+}
+@keyframes swfloat{
+  0%,100%{transform:translateY(0px)}
+  50%{transform:translateY(-8px)}
+}
+#sw-ad.hidden{display:none}
+
+.sw-silhouettes{
+  display:flex;align-items:flex-end;gap:10px;
+  position:relative;
+}
+
+/* purple glow under Mace */
+.sw-glow-purple{
+  position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
+  width:80px;height:14px;
+  background:radial-gradient(ellipse,rgba(167,139,250,0.7) 0%,transparent 70%);
+  border-radius:50%;
+}
+/* blue glow under Obi */
+.sw-glow-blue{
+  position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
+  width:80px;height:14px;
+  background:radial-gradient(ellipse,rgba(59,130,246,0.6) 0%,transparent 70%);
+  border-radius:50%;
+}
+
+.sw-figure{display:flex;flex-direction:column;align-items:center;position:relative;}
+
+/* lightsaber glow effect on canvas */
+.sw-canvas-wrap{position:relative;display:flex;align-items:flex-end;justify-content:center;}
+.sw-saber-glow-purple{
+  position:absolute;right:-4px;top:0;
+  width:6px;height:75%;
+  background:linear-gradient(to bottom,rgba(167,139,250,0.9),rgba(167,139,250,0.3));
+  border-radius:3px;
+  box-shadow:0 0 8px 3px rgba(167,139,250,0.6),0 0 16px 6px rgba(167,139,250,0.3);
+  filter:blur(1px);
+}
+.sw-saber-glow-blue{
+  position:absolute;right:-4px;top:0;
+  width:6px;height:75%;
+  background:linear-gradient(to bottom,rgba(59,130,246,0.9),rgba(59,130,246,0.3));
+  border-radius:3px;
+  box-shadow:0 0 8px 3px rgba(59,130,246,0.6),0 0 16px 6px rgba(59,130,246,0.3);
+  filter:blur(1px);
+}
+
+.sw-label{
+  font-size:9px;color:rgba(255,255,255,0.4);
+  font-family:'Exo 2',sans-serif;font-weight:700;
+  letter-spacing:0.08em;margin-top:5px;
+  text-align:center;
+}
+
+/* the card wrapper */
+.sw-card{
+  background:rgba(5,5,18,0.85);
+  border:1px solid rgba(255,215,0,0.25);
+  border-radius:12px;
+  padding:12px 14px 10px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  backdrop-filter:blur(4px);
+}
+
+.sw-header{
+  font-family:'Press Start 2P',monospace;
+  font-size:10px;color:#FFD700;
+  letter-spacing:0.08em;text-align:center;
+  text-shadow:0 0 10px rgba(255,215,0,0.5);
+}
+
+.sw-date{
+  font-family:'Press Start 2P',monospace;
+  font-size:12px;color:#fff;
+  letter-spacing:0.06em;text-align:center;
+  text-shadow:0 0 8px rgba(255,255,255,0.4);
+}
+
+.sw-hint{
+  font-size:12px;color:rgba(255,255,255,0.6);
+  font-family:'Exo 2',sans-serif;font-weight:700;
+  text-align:center;letter-spacing:0.04em;
+}
+
+.sw-badges{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+.sw-badge{
+  font-size:10px;font-weight:900;padding:3px 10px;border-radius:99px;
+  font-family:'Exo 2',sans-serif;letter-spacing:0.04em;
+}
+.sw-badge.exclusive{background:rgba(255,215,0,0.2);color:#FFD700;border:1px solid rgba(255,215,0,0.4);}
+.sw-badge.hybrid{background:rgba(167,139,250,0.2);color:#c4b5fd;border:1px solid rgba(167,139,250,0.4);}
+
+/* question marks pulsing */
+.sw-qmark{
+  font-size:32px;color:rgba(255,255,255,0.15);
+  animation:qpulse 2s ease-in-out infinite;
+  text-shadow:0 0 20px rgba(255,215,0,0.2);
+  font-family:'Exo 2',sans-serif;font-weight:900;
+}
+@keyframes qpulse{
+  0%,100%{opacity:0.15;transform:scale(1)}
+  50%{opacity:0.35;transform:scale(1.05)}
+}
+
+/* star field behind the silhouettes */
+.sw-stars{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:12px;
+}
+</style>
+</head>
+<body>
+
+<!-- VAULT TICKER -->
+<div id="vault-ticker">
+  <span id="vault-ticker-text">
+    &nbsp;&nbsp;· ICHIGO &amp; ZUKO · HYBRID CLASS · LAUNCH EXCLUSIVES · AVAILABLE NOW · ENTERING THE VAULT SOON · PLAY THEM WHILE YOU CAN · ICHIGO &amp; ZUKO · HYBRID CLASS · LAUNCH EXCLUSIVES · AVAILABLE NOW · ENTERING THE VAULT SOON · PLAY THEM WHILE YOU CAN ·&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span>
+</div>
+
+<!-- VAULT CORNER BADGE (after vault) -->
+<div id="vault-badge">
+  <div class="vb-dot"></div>
+  <div class="vb-text">HYBRID CLASS · VAULTED</div>
+</div>
+
+<!-- BELT DISPLAY — always visible top left -->
+<div id="belt-display">
+  <svg width="44" height="28" viewBox="0 0 44 28" style="flex-shrink:0">
+    <rect x="2" y="6" width="40" height="16" rx="4" fill="#92400e" stroke="#d97706" stroke-width="1.5"/>
+    <rect x="12" y="3" width="20" height="22" rx="5" fill="#d97706" stroke="#fbbf24" stroke-width="2"/>
+    <rect x="16" y="7" width="12" height="14" rx="3" fill="#fbbf24"/>
+    <text x="22" y="17" text-anchor="middle" font-size="6" font-weight="700" fill="#92400e" font-family="monospace">FNF</text>
+    <circle cx="8" cy="14" r="4" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+    <circle cx="36" cy="14" r="4" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>
+  </svg>
+  <div class="belt-info">
+    <div class="belt-title">FNF CHAMPION</div>
+    <div class="belt-holder" id="belt-name">VACANT</div>
+    <div class="belt-defenses" id="belt-defenses">First fight wins the belt!</div>
+  </div>
+</div>
+
+<!-- IDLE SCREEN — visible when !fnf on, no fight -->
+<div id="idle-screen">
+  <div class="idle-title">FRIDAY NIGHT FIGHTS</div>
+  <div class="idle-sub">type in chat to play</div>
+  <div class="idle-commands">
+    <div class="idle-cmd">!fight @username — challenge someone</div>
+    <div class="idle-cmd">!fight @username auto — instant random fight</div>
+    <div class="idle-cmd">!challenge — fight the current champion</div>
+    <div class="idle-cmd">!fnfhelp — see all commands</div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY — right side panel -->
+<div id="howto">
+  <div class="ht-title">HOW TO PLAY</div>
+  <div class="ht-cmd">
+    <div class="ht-key">!fight @user</div>
+    <div class="ht-desc">Challenge — both pick fighters in 30s</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!fight @user auto</div>
+    <div class="ht-desc">Skip select — random fighters instant</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!fight @user mirror</div>
+    <div class="ht-desc">Same character for both — pure skill</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!accept / !decline</div>
+    <div class="ht-desc">Accept or decline a challenge</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!pick [name]</div>
+    <div class="ht-desc">Choose your fighter (30 second window)</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!random</div>
+    <div class="ht-desc">Random fighter from your roster</div>
+  </div>
+  <div class="ht-section">FIGHT MOVES — 15 second window</div>
+  <div class="ht-cmd">
+    <div class="ht-key">!light</div>
+    <div class="ht-desc">Fast attack — always lands, low damage</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!heavy</div>
+    <div class="ht-desc">Slow attack — high damage, can miss</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!special</div>
+    <div class="ht-desc">Signature move — needs 30% meter</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!super</div>
+    <div class="ht-desc">ULTIMATE — needs full meter</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!taunt</div>
+    <div class="ht-desc">Builds meter — debuffs opponent</div>
+  </div>
+  <div class="ht-section">BELT &amp; COINS</div>
+  <div class="ht-cmd">
+    <div class="ht-key">!challenge</div>
+    <div class="ht-desc">Fight the champion for the belt</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!bet @user [coins]</div>
+    <div class="ht-desc">Bet coins on any active fight</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!coins</div>
+    <div class="ht-desc">Check your coin balance</div>
+  </div>
+  <div class="ht-cmd">
+    <div class="ht-key">!vaulttime</div>
+    <div class="ht-desc">Check how long hybrids are vaulted</div>
+  </div>
+</div>
+
+<!-- HUD STRIP — fight active -->
+<div id="hud-strip" style="display:none">
+  <div class="fighter-hud" id="hud-left">
+    <canvas id="sprite-left" class="hud-sprite" width="32" height="48" style="width:64px;height:96px"></canvas>
+    <div class="hud-info">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="hud-name" id="name-left">---</div>
+        <div class="hud-class-badge class-hero" id="class-left">hero</div>
+      </div>
+      <div class="hud-bars">
+        <div class="hp-bar-row">
+          <div class="bar-label">HP</div>
+          <div class="hp-bar"><div class="hp-fill green" id="hp-left" style="width:100%"></div></div>
+        </div>
+        <div class="hp-bar-row">
+          <div class="bar-label">SP</div>
+          <div class="meter-bar"><div class="meter-fill" id="meter-left" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud-center">
+    <div class="vs-text">VS</div>
+    <div class="round-badge" id="round-display">Round 1</div>
+  </div>
+
+  <div class="fighter-hud right" id="hud-right">
+    <canvas id="sprite-right" class="hud-sprite" width="32" height="48" style="width:64px;height:96px"></canvas>
+    <div class="hud-info">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+        <div class="hud-class-badge class-hero" id="class-right">hero</div>
+        <div class="hud-name right" id="name-right">---</div>
+      </div>
+      <div class="hud-bars">
+        <div class="hp-bar-row right">
+          <div class="bar-label right-txt">HP</div>
+          <div class="hp-bar"><div class="hp-fill green r" id="hp-right" style="width:100%"></div></div>
+        </div>
+        <div class="hp-bar-row right">
+          <div class="bar-label right-txt">SP</div>
+          <div class="meter-bar"><div class="meter-fill r" id="meter-right" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOVE LOG BAR -->
+<div id="move-log-bar">
+  <div id="move-log"></div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div id="status-text">Waiting...</div>
+  <div id="status-timer"></div>
+</div>
+
+<!-- KO FLASH -->
+<div id="ko-flash">
+  <div id="ko-text">K.O.</div>
+  <div id="ko-winner"></div>
+</div>
+
+<!-- BELT WIN FLASH -->
+<div id="belt-flash">
+  <div id="bf-text"></div>
+  <div id="bf-sub">NEW FNF CHAMPION</div>
+</div>
+
+<!-- VAULT ANIMATION -->
+<div id="vault-anim">
+  <div class="vault-sprites">
+    <div style="text-align:center">
+      <canvas id="vault-sprite-1" width="32" height="48" style="width:160px;height:240px;image-rendering:pixelated;display:block;margin:0 auto"></canvas>
+      <div style="font-size:18px;color:rgba(167,139,250,0.8);margin-top:12px;font-family:'Exo 2',sans-serif;font-weight:900">ICHIGO</div>
+    </div>
+    <div style="text-align:center">
+      <canvas id="vault-sprite-2" width="32" height="48" style="width:160px;height:240px;image-rendering:pixelated;display:block;margin:0 auto"></canvas>
+      <div style="font-size:18px;color:rgba(167,139,250,0.8);margin-top:12px;font-family:'Exo 2',sans-serif;font-weight:900">ZUKO</div>
+    </div>
+  </div>
+  <div id="vault-label">ENTERING THE VAULT</div>
+</div>
+
+<!-- BELL RIPPLE -->
+<div id="bell-ripple"></div>
+
+<!-- MAY 4TH STAR WARS SPECIAL DROP AD -->
+<div id="sw-ad">
+  <div class="sw-card">
+    <div class="sw-header">SPECIAL DROP</div>
+    <div class="sw-date">MAY THE 4TH</div>
+
+    <div class="sw-silhouettes">
+      <!-- Mace Windu silhouette with purple saber glow -->
+      <div class="sw-figure">
+        <div class="sw-canvas-wrap">
+          <canvas id="sw-mace" width="32" height="48" style="width:52px;height:78px;image-rendering:pixelated;display:block;"></canvas>
+          <div class="sw-saber-glow-purple"></div>
+        </div>
+        <div class="sw-glow-purple" style="position:relative;width:60px;height:10px;background:radial-gradient(ellipse,rgba(167,139,250,0.6) 0%,transparent 70%);margin-top:-2px;"></div>
+        <div class="sw-label">HYBRID</div>
+      </div>
+      <!-- question mark center -->
+      <div style="display:flex;flex-direction:column;align-items:center;padding-bottom:20px;gap:4px">
+        <div class="sw-qmark">?</div>
+        <div style="font-size:9px;color:rgba(255,215,0,0.3);font-family:'Exo 2',sans-serif;font-weight:700;">VS</div>
+      </div>
+      <!-- Obi-Wan silhouette with blue saber glow -->
+      <div class="sw-figure">
+        <div class="sw-canvas-wrap">
+          <canvas id="sw-obi" width="32" height="48" style="width:52px;height:78px;image-rendering:pixelated;display:block;"></canvas>
+          <div class="sw-saber-glow-blue"></div>
+        </div>
+        <div class="sw-glow-purple" style="position:relative;width:60px;height:10px;background:radial-gradient(ellipse,rgba(59,130,246,0.6) 0%,transparent 70%);margin-top:-2px;"></div>
+        <div class="sw-label">EXCLUSIVE</div>
+      </div>
+    </div>
+
+    <div class="sw-badges">
+      <div class="sw-badge hybrid">HYBRID CLASS</div>
+      <div class="sw-badge exclusive">LIMITED EXCLUSIVE</div>
+    </div>
+    <div class="sw-hint">One night only · then back to the vault</div>
+  </div>
+</div>
+
+<!-- CHAT LOG -->
+<div id="chat-log"></div>
+
+<!-- AUDIO -->
+<audio id="bell-sound" preload="auto">
+  <source src="bell.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const STATE = {
+  vaulted: false,
+  vaultTime: null,
+  beltHolder: null,
+  beltDefenses: 0,
+  hybridsEnabled: true,
+  overlayVisible: false,
+};
+
+// ============================================================
+// SPRITES
+// ============================================================
+function drawSprite(canvas, fn, scale, asSilhouette) {
+  canvas.width = 32; canvas.height = 48;
+  canvas.style.width = (32*scale)+'px';
+  canvas.style.height = (48*scale)+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const p = (x,y,w,h,c) => { ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
+  fn(p);
+  if(asSilhouette){
+    ctx.globalCompositeOperation='source-in';
+    ctx.fillStyle='#13132a';
+    ctx.fillRect(0,0,32,48);
+    ctx.globalCompositeOperation='source-over';
+  }
+}
+
+function goku(p){p(12,0,8,1,'#ca8a04');p(10,1,12,1,'#ca8a04');p(9,2,2,1,'#ca8a04');p(21,2,3,1,'#ca8a04');p(9,1,2,3,'#fbbf24');p(11,1,4,1,'#fef08a');p(15,1,4,1,'#fbbf24');p(19,1,3,2,'#fbbf24');p(10,2,5,2,'#fef08a');p(15,2,6,2,'#fbbf24');p(8,3,2,4,'#fbbf24');p(22,3,2,3,'#fbbf24');p(10,4,12,1,'#fde68a');p(9,5,14,5,'#fde68a');p(11,6,3,2,'#1e3a5f');p(18,6,3,2,'#1e3a5f');p(11,5,3,1,'#92400e');p(18,5,3,1,'#92400e');p(9,6,1,3,'#fde68a');p(22,6,1,3,'#fde68a');p(13,10,6,2,'#fde68a');p(8,12,16,1,'#7c2d12');p(7,13,18,8,'#ea580c');p(11,14,10,2,'#1d4ed8');p(6,13,2,8,'#ea580c');p(24,13,2,8,'#ea580c');p(5,14,2,6,'#ea580c');p(25,14,2,6,'#ea580c');p(5,19,3,2,'#1d4ed8');p(24,19,3,2,'#1d4ed8');p(5,21,3,3,'#fde68a');p(24,21,3,3,'#fde68a');p(9,23,14,12,'#1e3a5f');p(9,33,6,2,'#172554');p(17,33,6,2,'#172554');p(8,35,7,6,'#1a1a1a');p(17,35,7,6,'#1a1a1a');p(8,40,7,2,'#374151');p(17,40,7,2,'#374151');}
+function tanjiro(p){p(10,0,12,5,'#1a1a1a');p(9,1,14,5,'#d4a574');p(6,0,4,1,'#15803d');p(11,6,3,2,'#1e3a5f');p(17,6,3,2,'#1e3a5f');p(9,5,14,5,'#d4a574');p(9,5,14,22,'#1e3a1e');p(9,12,14,1,'#15803d');p(7,13,2,8,'#1e3a1e');p(23,13,2,8,'#1e3a1e');p(6,14,2,6,'#1e3a1e');p(24,14,2,6,'#1e3a1e');p(6,20,3,3,'#d4a574');p(23,20,3,3,'#d4a574');p(9,35,6,8,'#1e3a1e');p(17,35,6,8,'#1e3a1e');p(8,42,7,3,'#1a1a1a');p(17,42,7,3,'#1a1a1a');}
+function saitama(p){p(10,1,12,9,'#fde68a');p(9,3,14,7,'#fde68a');p(11,6,4,3,'#d4a574');p(17,6,4,3,'#d4a574');p(12,7,2,1,'#1a1a1a');p(18,7,2,1,'#1a1a1a');p(9,6,1,3,'#fde68a');p(22,6,1,3,'#fde68a');p(13,10,6,3,'#fde68a');p(7,13,18,22,'#fef9c3');p(5,13,3,8,'#fef9c3');p(24,13,3,8,'#fef9c3');p(4,14,2,7,'#fef9c3');p(26,14,2,7,'#fef9c3');p(4,21,4,5,'#dc2626');p(24,21,4,5,'#dc2626');p(8,26,16,2,'#ca8a04');p(8,28,16,14,'#fef9c3');p(7,40,8,5,'#dc2626');p(17,40,8,5,'#dc2626');}
+function killua(p){p(10,0,12,6,'#e2e8f0');p(9,2,14,5,'#f8fafc');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(6,7,4,1,'#fbbf24');p(9,5,14,5,'#fde68a');p(8,12,16,22,'#1e293b');p(6,13,3,8,'#1e293b');p(23,13,3,8,'#1e293b');p(5,14,2,6,'#1e293b');p(25,14,2,6,'#1e293b');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(9,34,6,8,'#1e293b');p(17,34,6,8,'#1e293b');p(8,41,7,4,'#0f172a');p(17,41,7,4,'#0f172a');}
+function leonardo(p){p(10,0,12,5,'#15803d');p(9,2,14,5,'#fde68a');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(9,5,14,5,'#fde68a');p(8,12,16,22,'#15803d');p(9,12,1,22,'#166534');p(22,12,1,22,'#166534');p(6,13,3,8,'#15803d');p(23,13,3,8,'#15803d');p(5,14,2,6,'#15803d');p(25,14,2,6,'#15803d');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(14,5,2,9,'#e5e7eb');p(14,4,2,2,'#9ca3af');p(24,5,2,9,'#e5e7eb');p(24,4,2,2,'#9ca3af');p(9,34,6,8,'#15803d');p(17,34,6,8,'#15803d');p(8,41,7,4,'#052e16');p(17,41,7,4,'#052e16');}
+function jack(p){p(13,0,6,3,'#1a1a1a');p(12,1,8,3,'#1a1a1a');p(10,4,12,8,'#c8956c');p(9,5,14,6,'#c8956c');p(11,5,4,1,'#4a2810');p(17,5,4,1,'#4a2810');p(11,7,4,2,'#1a1a1a');p(17,7,4,2,'#1a1a1a');p(7,14,18,20,'#f8fafc');p(4,14,4,10,'#f8fafc');p(24,14,4,10,'#f8fafc');p(3,15,3,8,'#f8fafc');p(26,15,3,8,'#f8fafc');p(3,23,4,3,'#c8956c');p(25,23,4,3,'#c8956c');p(9,22,14,3,'#1a1a1a');p(24,10,2,20,'#e5e7eb');p(24,9,3,2,'#d1d5db');p(24,30,2,8,'#92400e');p(8,34,16,11,'#1a1a1a');p(8,43,7,3,'#c8956c');p(17,43,7,3,'#c8956c');}
+function ichigo(p){p(5,0,6,4,'#f97316');p(10,0,3,4,'#f97316');p(19,1,3,3,'#ea580c');p(11,2,9,3,'#fb923c');p(10,3,12,2,'#f97316');p(10,5,12,6,'#fde68a');p(9,6,1,4,'#fde68a');p(22,6,1,4,'#fde68a');p(11,5,4,1,'#92400e');p(17,5,4,1,'#92400e');p(11,7,4,2,'#1a1a1a');p(17,7,4,2,'#1a1a1a');p(7,13,18,22,'#1a1a1a');p(5,13,3,10,'#1a1a1a');p(24,13,3,10,'#1a1a1a');p(4,22,3,3,'#fde68a');p(25,22,3,3,'#fde68a');p(22,24,2,12,'#92400e');p(9,35,14,8,'#1a1a1a');p(9,42,6,3,'#f8fafc');p(17,42,6,3,'#f8fafc');}
+function zuko(p){p(13,0,6,3,'#1a1a1a');p(12,1,8,4,'#1a1a1a');p(15,1,2,1,'#fbbf24');p(10,4,12,8,'#fde68a');p(9,5,1,4,'#fde68a');p(22,5,1,4,'#fde68a');p(10,6,4,1,'#dc2626');p(10,7,3,2,'#b91c1c');p(11,7,3,2,'#92400e');p(17,7,3,2,'#92400e');p(8,14,16,1,'#7f1d1d');p(7,15,18,15,'#7f1d1d');p(10,15,12,1,'#b45309');p(6,14,3,4,'#92400e');p(23,14,3,4,'#92400e');p(5,18,3,8,'#7f1d1d');p(24,18,3,8,'#7f1d1d');p(4,24,4,3,'#92400e');p(24,24,4,3,'#92400e');p(4,27,3,3,'#fde68a');p(25,27,3,3,'#fde68a');p(3,27,1,2,'#f97316');p(28,27,1,2,'#f97316');p(9,30,14,13,'#1a1a2e');p(8,41,7,4,'#7f1d1d');p(17,41,7,4,'#7f1d1d');}
+function shredder(p){p(9,0,14,8,'#374151');p(10,0,12,7,'#4b5563');p(11,1,10,6,'#6b7280');p(9,0,2,2,'#9ca3af');p(21,0,2,2,'#9ca3af');p(14,0,4,1,'#9ca3af');p(10,5,12,3,'#1a1a1a');p(11,6,4,2,'#dc2626');p(17,6,4,2,'#dc2626');p(5,9,22,4,'#4c1d95');p(4,10,24,25,'#3b0764');p(6,9,20,1,'#5b21b6');p(9,11,14,22,'#374151');p(10,12,12,20,'#4b5563');p(6,11,4,4,'#6b7280');p(5,11,2,3,'#9ca3af');p(22,11,4,4,'#6b7280');p(25,11,2,3,'#9ca3af');p(6,15,3,10,'#374151');p(23,15,3,10,'#374151');p(4,18,2,1,'#9ca3af');p(27,18,2,1,'#9ca3af');p(4,24,4,2,'#9ca3af');p(24,24,4,2,'#9ca3af');p(5,26,3,3,'#374151');p(24,26,3,3,'#374151');p(9,33,14,10,'#374151');p(8,41,7,4,'#374151');p(17,41,7,4,'#374151');p(7,43,2,2,'#9ca3af');p(23,43,2,2,'#9ca3af');}
+function aku(p){p(9,0,14,6,'#1a1a1a');p(8,1,16,5,'#1a1a1a');p(4,0,4,3,'#dc2626');p(24,0,4,3,'#dc2626');p(6,2,2,2,'#dc2626');p(22,2,2,2,'#dc2626');p(11,6,4,2,'#fef08a');p(17,6,4,2,'#fef08a');p(8,8,16,26,'#1a1a1a');p(6,10,2,6,'#1a1a1a');p(24,10,2,6,'#1a1a1a');p(4,12,3,3,'#dc2626');p(25,12,3,3,'#dc2626');p(8,34,7,8,'#1a1a1a');p(17,34,7,8,'#1a1a1a');p(6,41,9,4,'#1a1a1a');p(17,41,9,4,'#1a1a1a');}
+function frieza(p){p(10,0,12,6,'#f8fafc');p(9,2,14,5,'#f8fafc');p(11,6,3,2,'#7c3aed');p(17,6,3,2,'#7c3aed');p(9,5,14,5,'#f8fafc');p(8,12,16,22,'#f8fafc');p(6,13,3,8,'#f8fafc');p(23,13,3,8,'#f8fafc');p(5,14,2,6,'#f8fafc');p(25,14,2,6,'#f8fafc');p(5,20,3,3,'#f8fafc');p(24,20,3,3,'#f8fafc');p(5,9,6,1,'#7c3aed');p(21,9,6,1,'#7c3aed');p(4,10,4,2,'#7c3aed');p(24,10,4,2,'#7c3aed');p(9,34,6,8,'#7c3aed');p(17,34,6,8,'#7c3aed');p(8,41,7,4,'#4c1d95');p(17,41,7,4,'#4c1d95');}
+function dio(p){p(10,0,12,6,'#fde68a');p(9,1,14,6,'#fde68a');p(5,0,6,2,'#92400e');p(21,0,6,2,'#92400e');p(10,0,12,1,'#f5c842');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(8,12,16,22,'#f5c842');p(6,13,3,8,'#f5c842');p(23,13,3,8,'#f5c842');p(5,14,2,6,'#f5c842');p(25,14,2,6,'#f5c842');p(5,20,3,3,'#fde68a');p(24,20,3,3,'#fde68a');p(10,12,12,1,'#ca8a04');p(10,22,12,2,'#ca8a04');p(9,34,6,8,'#f5c842');p(17,34,6,8,'#f5c842');p(8,41,7,4,'#713f12');p(17,41,7,4,'#713f12');}
+function ryu(p){p(13,0,6,3,'#f8fafc');p(12,1,8,5,'#d4a574');p(11,5,3,2,'#1a1a1a');p(18,5,3,2,'#1a1a1a');p(9,5,14,5,'#d4a574');p(7,10,18,20,'#dc2626');p(10,11,12,1,'#7f1d1d');p(5,12,3,8,'#dc2626');p(24,12,3,8,'#dc2626');p(4,13,2,6,'#dc2626');p(26,13,2,6,'#dc2626');p(4,19,4,3,'#f8fafc');p(24,19,4,3,'#f8fafc');p(9,22,14,3,'#ffffff');p(9,30,6,12,'#1a1a1a');p(17,30,6,12,'#1a1a1a');p(8,41,7,5,'#1a1a1a');p(17,41,7,5,'#1a1a1a');}
+function johnny(p){p(12,0,8,5,'#f5c842');p(11,1,10,5,'#fde68a');p(11,6,3,2,'#1a1a1a');p(17,6,3,2,'#1a1a1a');p(9,5,14,5,'#fde68a');p(7,12,18,24,'#1a1a1a');p(5,13,3,8,'#1a1a1a');p(24,13,3,8,'#1a1a1a');p(4,14,2,6,'#1a1a1a');p(26,14,2,6,'#1a1a1a');p(4,20,3,3,'#fde68a');p(25,20,3,3,'#fde68a');p(9,36,6,8,'#1a1a1a');p(17,36,6,8,'#1a1a1a');p(8,43,7,3,'#1a1a1a');p(17,43,7,3,'#1a1a1a');}
+
+// ============================================================
+// CHARACTER DATA
+// ============================================================
+const CHARS = {
+  goku:     {name:'Goku',        show:'Dragon Ball Z',    cls:'hero',    rar:'legendary', fn:goku,     atk:9, def:6, spd:8, hp:100},
+  tanjiro:  {name:'Tanjiro',     show:'Demon Slayer',     cls:'hero',    rar:'uncommon',  fn:tanjiro,  atk:8, def:7, spd:8, hp:90},
+  saitama:  {name:'Saitama',     show:'One Punch Man',    cls:'hero',    rar:'legendary', fn:saitama,  atk:10,def:3, spd:6, hp:95},
+  killua:   {name:'Killua',      show:'HunterxHunter',    cls:'hero',    rar:'rare',      fn:killua,   atk:8, def:6, spd:10,hp:80},
+  leonardo: {name:'Leonardo',    show:'TMNT 1987',        cls:'hero',    rar:'uncommon',  fn:leonardo, atk:8, def:8, spd:7, hp:90},
+  jack:     {name:'Samurai Jack',show:'Cartoon Network',  cls:'hero',    rar:'rare',      fn:jack,     atk:9, def:7, spd:9, hp:85},
+  ryu:      {name:'Ryu',         show:'Street Fighter',   cls:'hero',    rar:'rare',      fn:ryu,      atk:8, def:7, spd:7, hp:90},
+  johnny:   {name:'Johnny Bravo',show:'Cartoon Network',  cls:'hero',    rar:'common',    fn:johnny,   atk:7, def:4, spd:8, hp:75},
+  ichigo:   {name:'Ichigo',      show:'Bleach',           cls:'hybrid',  rar:'rare',      fn:ichigo,   atk:9, def:7, spd:8, hp:88, hybrid:true},
+  zuko:     {name:'Zuko',        show:'Avatar',           cls:'hybrid',  rar:'rare',      fn:zuko,     atk:8, def:7, spd:8, hp:88, hybrid:true},
+  frieza:   {name:'Frieza',      show:'Dragon Ball Z',    cls:'villain', rar:'legendary', fn:frieza,   atk:9, def:8, spd:8, hp:92},
+  shredder: {name:'Shredder',    show:'TMNT 1987',        cls:'villain', rar:'rare',      fn:shredder, atk:9, def:8, spd:6, hp:90},
+  aku:      {name:'Aku',         show:'Samurai Jack',     cls:'villain', rar:'legendary', fn:aku,      atk:10,def:9, spd:5, hp:100},
+  dio:      {name:'DIO',         show:"JoJo's",           cls:'villain', rar:'legendary', fn:dio,      atk:9, def:8, spd:6, hp:95},
+};
+
+const MOVE_DMG = {
+  light:   {min:6, max:14, miss:0.05, meter:5},
+  heavy:   {min:18,max:32, miss:0.20, meter:10},
+  special: {min:28,max:44, miss:0.15, meter:-20, cost:30},
+  super:   {min:55,max:90, miss:0.10, meter:-100,cost:100},
+  taunt:   {min:0, max:0,  miss:0,    meter:25,  debuff:true},
+};
+
+// ============================================================
+// FIGHT STATE
+// ============================================================
+let fight = null;
+let pendingChallenge = null;
+
+function newFight(p1name, p2name) {
+  return {
+    p1:{user:p1name,char:null,data:null,hp:0,maxHp:0,meter:0,move:null},
+    p2:{user:p2name,char:null,data:null,hp:0,maxHp:0,meter:0,move:null},
+    round:1, phase:'pick', isBelt:false,
+  };
+}
+
+// ============================================================
+// COINS
+// ============================================================
+const COINS={};
+const BETS={};
+function getCoins(u){return COINS[u.toLowerCase()]||200;}
+function addCoins(u,a){const k=u.toLowerCase();COINS[k]=(COINS[k]||200)+a;}
+function spendCoins(u,a){const k=u.toLowerCase();if(getCoins(k)<a)return false;COINS[k]=(COINS[k]||200)-a;return true;}
+function settleBets(winner){
+  for(const[b,bet]of Object.entries(BETS)){
+    if(bet.target.toLowerCase()===winner.toLowerCase()){addCoins(b,bet.amount*2);addChatMsg(`${b} won ${bet.amount*2} coins!`,'system');}
+  }
+  Object.keys(BETS).forEach(k=>delete BETS[k]);
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showEl(id,show=true){const e=document.getElementById(id);if(e)e.style.display=show?'':'none';}
+function addClass(id,c){const e=document.getElementById(id);if(e)e.classList.add(c);}
+function removeClass(id,c){const e=document.getElementById(id);if(e)e.classList.remove(c);}
+
+let chatQ=[];
+function addChatMsg(text,type='normal'){
+  const log=document.getElementById('chat-log');
+  const d=document.createElement('div');
+  d.className='chat-msg '+type;
+  d.textContent=text;
+  log.appendChild(d);
+  chatQ.push(d);
+  if(chatQ.length>6){const o=chatQ.shift();if(o.parentNode)o.parentNode.removeChild(o);}
+  setTimeout(()=>{if(d.parentNode)d.parentNode.removeChild(d);chatQ=chatQ.filter(m=>m!==d);},9000);
+}
+
+function updateBeltDisplay(){
+  const n=document.getElementById('belt-name');
+  const df=document.getElementById('belt-defenses');
+  if(!STATE.beltHolder){n.textContent='VACANT';df.textContent='First fight wins the belt!';}
+  else{n.textContent=STATE.beltHolder.toUpperCase();df.textContent=STATE.beltDefenses+' defense'+(STATE.beltDefenses!==1?'s':'');}
+}
+
+function setHUDFight(f){
+  const c1=f.p1.data,c2=f.p2.data;
+  if(!c1||!c2)return;
+  document.getElementById('name-left').textContent=f.p1.user.toUpperCase();
+  document.getElementById('name-right').textContent=f.p2.user.toUpperCase();
+  const cl1=document.getElementById('class-left'),cl2=document.getElementById('class-right');
+  cl1.textContent=c1.cls;cl1.className='hud-class-badge class-'+c1.cls;
+  cl2.textContent=c2.cls;cl2.className='hud-class-badge class-'+c2.cls;
+  drawSprite(document.getElementById('sprite-left'),c1.fn,2,false);
+  const sr=document.getElementById('sprite-right');
+  drawSprite(sr,c2.fn,2,false);
+  const rc=sr.getContext('2d');rc.save();rc.scale(-1,1);rc.drawImage(sr,-sr.width,0);rc.restore();
+  document.getElementById('hud-strip').style.display='flex';
+  addClass('status-bar','show');
+  addClass('move-log-bar','show');
+  updateHP(f);
+}
+
+function updateHP(f){
+  const p1=Math.max(0,(f.p1.hp/f.p1.maxHp)*100);
+  const p2=Math.max(0,(f.p2.hp/f.p2.maxHp)*100);
+  const e1=document.getElementById('hp-left'),e2=document.getElementById('hp-right');
+  e1.style.width=p1+'%';e2.style.width=p2+'%';
+  e1.className='hp-fill '+(p1>50?'green':p1>25?'yellow':'red');
+  e2.className='hp-fill r '+(p2>50?'green':p2>25?'yellow':'red');
+  document.getElementById('meter-left').style.width=Math.min(100,f.p1.meter)+'%';
+  document.getElementById('meter-right').style.width=Math.min(100,f.p2.meter)+'%';
+  document.getElementById('round-display').textContent='Round '+f.round;
+}
+
+function setStatus(text,timer=''){
+  document.getElementById('status-text').textContent=text;
+  document.getElementById('status-timer').textContent=timer;
+}
+
+function setMoveLog(text){
+  document.getElementById('move-log').textContent=text;
+}
+
+function ringBell(){
+  const b=document.getElementById('bell-sound');
+  if(b){b.currentTime=0;b.play().catch(()=>{});}
+  const r=document.getElementById('bell-ripple');
+  r.className='ring';
+  setTimeout(()=>{r.className='';},800);
+  setTimeout(()=>{r.className='ring';setTimeout(()=>{r.className='';},800);},1000);
+}
+
+function flashKO(winner,isBelt){
+  document.getElementById('ko-text').textContent='K.O.';
+  document.getElementById('ko-winner').textContent=winner.toUpperCase()+' WINS!';
+  addClass('ko-flash','show');
+  setTimeout(()=>{
+    removeClass('ko-flash','show');
+    if(isBelt)flashBeltWin(winner);
+    else endFight(winner);
+  },3000);
+}
+
+function flashBeltWin(user){
+  STATE.beltHolder=user;STATE.beltDefenses=0;
+  updateBeltDisplay();
+  document.getElementById('bf-text').textContent=user.toUpperCase()+'\nIS THE NEW FNF CHAMPION';
+  addClass('belt-flash','show');
+  setTimeout(()=>{removeClass('belt-flash','show');endFight(user);},4500);
+}
+
+function endFight(winner){
+  if(!fight)return;
+  addCoins(winner,150);
+  addChatMsg(winner+' wins! +150 coins','system');
+  settleBets(winner);
+  fight=null;
+  document.getElementById('hud-strip').style.display='none';
+  removeClass('status-bar','show');
+  removeClass('move-log-bar','show');
+  setMoveLog('');
+  STATE.overlayVisible=false;
+  removeClass('idle-screen','show');
+  removeClass('howto','show');
+}
+
+// ============================================================
+// PICK PHASE
+// ============================================================
+let pickTimeout=null;
+function startPickPhase(f){
+  fight=f;fight.phase='pick';
+  STATE.overlayVisible=true;
+  setHUDFight(f);
+  setStatus(f.p1.user+' & '+f.p2.user+' — choose your fighter!  !pick [name]  or  !random','30');
+  addChatMsg('FIGHT STARTING! '+f.p1.user+' vs '+f.p2.user+' — type !pick [name] to choose','system');
+  ringBell();
+  let s=30;
+  pickTimeout=setInterval(()=>{
+    s--;
+    setStatus(f.p1.user+' & '+f.p2.user+' — choose your fighter!  !pick [name]  or  !random',s+'s');
+    if(s<=0){
+      clearInterval(pickTimeout);
+      if(!fight.p1.char)autoAssign(fight.p1);
+      if(!fight.p2.char)autoAssign(fight.p2);
+      beginFight();
+    }
+  },1000);
+}
+
+function autoAssign(player){
+  const keys=Object.keys(CHARS).filter(k=>!(STATE.vaulted&&CHARS[k].hybrid));
+  const key=keys[Math.floor(Math.random()*keys.length)];
+  const ch=CHARS[key];
+  player.char=key;player.data=ch;
+  player.hp=ch.hp;player.maxHp=ch.hp;player.meter=0;
+  addChatMsg(player.user+' auto-assigned '+ch.name,'system');
+}
+
+function playerPick(user,charKey){
+  if(!fight||fight.phase!=='pick')return;
+  const ch=CHARS[charKey];
+  if(!ch){addChatMsg('Unknown fighter: '+charKey+'. Type !roster to see available.','error');return;}
+  if(STATE.vaulted&&ch.hybrid){addChatMsg(ch.name+' is in the vault — not available right now.','error');return;}
+  const player=fight.p1.user.toLowerCase()===user.toLowerCase()?fight.p1:fight.p2.user.toLowerCase()===user.toLowerCase()?fight.p2:null;
+  if(!player)return;
+  if(player.char){addChatMsg(user+' already picked!','error');return;}
+  player.char=charKey;player.data=ch;player.hp=ch.hp;player.maxHp=ch.hp;player.meter=0;
+  addChatMsg(user+' picks '+ch.name+'!','system');
+  setHUDFight(fight);
+  if(fight.p1.data&&fight.p2.data){clearInterval(pickTimeout);beginFight();}
+}
+
+function beginFight(){
+  if(!fight)return;
+  fight.phase='move';
+  setHUDFight(fight);
+  ringBell();
+  addChatMsg('ROUND '+fight.round+' — type !light  !heavy  !special  !super  or  !taunt  (15 seconds!)','system');
+  setStatus('Round '+fight.round+' — '+fight.p1.user+' & '+fight.p2.user+': enter your move!','15s');
+  startMoveWindow();
+}
+
+// ============================================================
+// MOVE PHASE
+// ============================================================
+let moveTimeout=null;
+function startMoveWindow(){
+  fight.p1.move=null;fight.p2.move=null;
+  let s=15;
+  moveTimeout=setInterval(()=>{
+    s--;
+    setStatus('Round '+fight.round+' — '+fight.p1.user+' & '+fight.p2.user+': enter your move!',s+'s');
+    if(s<=0){
+      clearInterval(moveTimeout);
+      if(!fight.p1.move)fight.p1.move='light';
+      if(!fight.p2.move)fight.p2.move='light';
+      resolveMoves();
+    }
+  },1000);
+}
+
+function playerMove(user,move){
+  if(!fight||fight.phase!=='move')return;
+  const validMoves=['light','heavy','special','super','taunt'];
+  if(!validMoves.includes(move))return;
+  const player=fight.p1.user.toLowerCase()===user.toLowerCase()?fight.p1:fight.p2.user.toLowerCase()===user.toLowerCase()?fight.p2:null;
+  if(!player||player.move)return;
+  if(move==='special'&&player.meter<30){addChatMsg(user+': not enough meter for special! Use !taunt to build meter.','error');return;}
+  if(move==='super'&&player.meter<100){addChatMsg(user+': meter not full! Use !taunt to build super meter.','error');return;}
+  player.move=move;
+  addChatMsg(user+' locked in '+move+'...','normal');
+  if(fight.p1.move&&fight.p2.move){clearInterval(moveTimeout);resolveMoves();}
+}
+
+function resolveMoves(){
+  if(!fight)return;
+  fight.phase='resolving';
+  const p1=fight.p1,p2=fight.p2;
+  const m1=MOVE_DMG[p1.move]||MOVE_DMG.light;
+  const m2=MOVE_DMG[p2.move]||MOVE_DMG.light;
+
+  function calcDmg(atk,def,moveDef){
+    if(moveDef.debuff){def.meter=Math.max(0,def.meter-15);return 0;}
+    if(Math.random()<moveDef.miss)return -1;
+    let dmg=Math.round(moveDef.min+Math.random()*(moveDef.max-moveDef.min));
+    if(atk.char==='saitama'&&atk.move==='super')dmg=def.hp;
+    if(def.char==='aku'&&['light','heavy'].includes(atk.move))dmg=Math.round(dmg*0.5);
+    return dmg;
+  }
+
+  const dmg1=calcDmg(p1,p2,m1);
+  const dmg2=calcDmg(p2,p1,m2);
+
+  const moveNames={light:'Light Attack',heavy:'Heavy Attack',special:'Special',super:'SUPER',taunt:'Taunt'};
+  let logParts=[];
+
+  if(dmg1>0){p2.hp=Math.max(0,p2.hp-dmg1);p1.meter=Math.min(100,p1.meter+(m1.meter||5));logParts.push(p1.data.name+' '+moveNames[p1.move]+' — '+dmg1+' dmg!');}
+  else if(dmg1===-1){logParts.push(p1.data.name+' MISSED!');p1.meter=Math.min(100,p1.meter+3);}
+  else if(m1.debuff){p1.meter=Math.min(100,p1.meter+25);logParts.push(p1.data.name+' taunts!');}
+
+  if(dmg2>0){p1.hp=Math.max(0,p1.hp-dmg2);p2.meter=Math.min(100,p2.meter+(m2.meter||5));logParts.push(p2.data.name+' '+moveNames[p2.move]+' — '+dmg2+' dmg!');}
+  else if(dmg2===-1){logParts.push(p2.data.name+' MISSED!');p2.meter=Math.min(100,p2.meter+3);}
+  else if(m2.debuff){p2.meter=Math.min(100,p2.meter+25);logParts.push(p2.data.name+' taunts!');}
+
+  const logText=logParts.join('   |   ')||'Both fighters clash!';
+  setMoveLog(logText);
+  addChatMsg(logText,'normal');
+  updateHP(fight);
+
+  setTimeout(()=>{
+    if(!fight)return;
+    if(p1.hp<=0&&p2.hp<=0){
+      addCoins(p1.user,80);addCoins(p2.user,80);
+      addChatMsg('DRAW! Both earn 80 coins.','system');
+      fight=null;
+      document.getElementById('hud-strip').style.display='none';
+      removeClass('status-bar','show');removeClass('move-log-bar','show');
+      STATE.overlayVisible=false;
+    } else if(p2.hp<=0){
+      flashKO(p1.user,fight.isBelt);
+    } else if(p1.hp<=0){
+      flashKO(p2.user,fight.isBelt);
+    } else {
+      fight.round++;fight.phase='move';
+      addChatMsg('ROUND '+fight.round+' — type !light  !heavy  !special  !super  or  !taunt','system');
+      setStatus('Round '+fight.round+' — '+p1.user+' & '+p2.user+': enter your move!','15s');
+      startMoveWindow();
+    }
+  },2500);
+}
+
+// ============================================================
+// VAULT SYSTEM
+// ============================================================
+function initiateVault(){
+  if(STATE.vaulted)return;
+  STATE.vaulted=true;STATE.vaultTime=Date.now();
+  const ticker=document.getElementById('vault-ticker-text');
+  ticker.textContent='· HYBRID CLASS · VAULTED · ICHIGO & ZUKO · HYBRID CLASS · VAULTED · ICHIGO & ZUKO · HYBRID CLASS · VAULTED ·                    ';
+  ticker.style.color='rgba(167,139,250,0.5)';
+  document.getElementById('vault-ticker').style.background='rgba(30,10,50,0.35)';
+  const vs1=document.getElementById('vault-sprite-1');
+  const vs2=document.getElementById('vault-sprite-2');
+  drawSprite(vs1,ichigo,5,false);drawSprite(vs2,zuko,5,false);
+  addClass('vault-anim','show');
+  setTimeout(()=>{document.getElementById('vault-label').textContent='ENTERING THE VAULT';},500);
+  setTimeout(()=>{drawSprite(vs1,ichigo,5,true);drawSprite(vs2,zuko,5,true);document.getElementById('vault-label').textContent='VAULTED';document.getElementById('vault-label').style.color='rgba(167,139,250,0.5)';},3500);
+  setTimeout(()=>{removeClass('vault-anim','show');addClass('vault-badge','show');},6500);
+}
+
+// ============================================================
+// COMMAND PROCESSOR
+// ============================================================
+function processCommand(user,msg,isBroadcaster){
+  const parts=msg.trim().toLowerCase().split(/\s+/);
+  const cmd=parts[0];
+
+  // ── GHOST COMMANDS — silent, broadcaster only ──
+  if(isBroadcaster){
+    if(cmd==='!shadowvault'){initiateVault();return;}
+    if(cmd==='!shadowunvault'){
+      STATE.vaulted=false;STATE.vaultTime=null;
+      removeClass('vault-badge','show');
+      const t=document.getElementById('vault-ticker-text');
+      t.textContent='· ICHIGO & ZUKO · HYBRID CLASS · LAUNCH EXCLUSIVES · PLAYING NOW · ENTERING THE VAULT SOON · PLAY THEM WHILE YOU CAN ·                    ';
+      t.style.color='#c4b5fd';
+      return;
+    }
+    if(cmd==='!shadowbelt'){const h=parts[1]||'';if(h){STATE.beltHolder=h;STATE.beltDefenses=0;updateBeltDisplay();}return;}
+    if(cmd==='!shadowcoins'){const t=parts[1]||'';const a=parseInt(parts[2])||0;if(t&&a)addCoins(t,a);return;}
+    if(cmd==='!shadowreset'){STATE.beltHolder=null;STATE.beltDefenses=0;updateBeltDisplay();return;}
+    // toggle the Star Wars May 4th ad on/off
+    if(cmd==='!shadowswad'){
+      const ad=document.getElementById('sw-ad');
+      if(ad)ad.classList.toggle('hidden');
+      return;
+    }
+
+    // !fnf — toggle overlay on/off, broadcaster only, no chat echo
+    if(cmd==='!fnf'){
+      STATE.overlayVisible=!STATE.overlayVisible;
+      if(STATE.overlayVisible){
+        addClass('idle-screen','show');
+        addClass('howto','show');
+      } else {
+        removeClass('idle-screen','show');
+        removeClass('howto','show');
+      }
+      return;
+    }
+  }
+
+  // ── PUBLIC COMMANDS ──
+  if(cmd==='!fight'){
+    if(fight){addChatMsg('A fight is already happening! Wait for it to finish.','error');return;}
+    const target=(parts[1]||'').replace('@','');
+    if(!target||target.toLowerCase()===user.toLowerCase()){addChatMsg(user+': tag someone to challenge — !fight @username','error');return;}
+    const mode=parts[2]||'standard';
+    if(mode==='auto'){
+      const f=newFight(user,target);
+      autoAssign(f.p1);autoAssign(f.p2);
+      fight=f;fight.phase='move';
+      STATE.overlayVisible=true;
+      setHUDFight(f);ringBell();
+      addChatMsg('AUTO FIGHT! '+f.p1.user+' ('+f.p1.data.name+') vs '+f.p2.user+' ('+f.p2.data.name+')! Type your move!','system');
+      setStatus('Auto Fight! Round 1 — '+f.p1.user+' & '+f.p2.user+': type !light !heavy !special !super !taunt','15s');
+      startMoveWindow();
+    } else if(mode==='mirror'){
+      const keys=Object.keys(CHARS).filter(k=>!(STATE.vaulted&&CHARS[k].hybrid));
+      const randomKey=keys[Math.floor(Math.random()*keys.length)];
+      const ch=CHARS[randomKey];
+      const f=newFight(user,target);
+      f.p1.char=randomKey;f.p1.data=ch;f.p1.hp=ch.hp;f.p1.maxHp=ch.hp;
+      f.p2.char=randomKey;f.p2.data=ch;f.p2.hp=ch.hp;f.p2.maxHp=ch.hp;
+      fight=f;fight.phase='move';
+      STATE.overlayVisible=true;
+      setHUDFight(f);ringBell();
+      addChatMsg('MIRROR MATCH! Both players are '+ch.name+'! May the better player win!','system');
+      setStatus('Mirror Match! Round 1 — '+f.p1.user+' & '+f.p2.user+': type !light !heavy !special !super !taunt','15s');
+      startMoveWindow();
+    } else {
+      pendingChallenge={from:user,to:target,mode:'standard',expires:Date.now()+60000,isBelt:false};
+      addChatMsg(user+' challenges '+target+'! — '+target+', type !accept or !decline (60 seconds)','system');
+    }
+    return;
+  }
+
+  if(cmd==='!challenge'){
+    if(fight){addChatMsg('A fight is in progress! Challenge after it ends.','error');return;}
+    if(!STATE.beltHolder){addChatMsg('No champion yet! Type !fight @someone — winner gets the belt.','system');return;}
+    if(user.toLowerCase()===STATE.beltHolder.toLowerCase()){addChatMsg(user+': you ARE the champion! Defend your title.','error');return;}
+    pendingChallenge={from:user,to:STATE.beltHolder,mode:'standard',expires:Date.now()+60000,isBelt:true};
+    addChatMsg(user+' challenges '+STATE.beltHolder+' for the FNF CHAMPIONSHIP BELT! — '+STATE.beltHolder+', type !accept or lose the belt! (60s)','system');
+    return;
+  }
+
+  if(cmd==='!accept'){
+    if(!pendingChallenge){addChatMsg('No pending challenge to accept.','error');return;}
+    if(user.toLowerCase()!==pendingChallenge.to.toLowerCase()){addChatMsg('Only '+pendingChallenge.to+' can accept this challenge.','error');return;}
+    if(Date.now()>pendingChallenge.expires){addChatMsg('Challenge expired! Issue a new !fight.','error');pendingChallenge=null;return;}
+    const f=newFight(pendingChallenge.from,pendingChallenge.to);
+    f.isBelt=pendingChallenge.isBelt||false;
+    pendingChallenge=null;
+    if(f.isBelt)addChatMsg('BELT FIGHT ACCEPTED! '+f.p1.user+' vs '+f.p2.user+' — the championship is on the line!','system');
+    startPickPhase(f);
+    return;
+  }
+
+  if(cmd==='!decline'){
+    if(!pendingChallenge)return;
+    if(user.toLowerCase()!==pendingChallenge.to.toLowerCase())return;
+    addChatMsg(pendingChallenge.to+' declined the challenge.','normal');
+    pendingChallenge=null;
+    return;
+  }
+
+  if(cmd==='!pick'||cmd==='!random'){
+    if(!fight||fight.phase!=='pick'){addChatMsg('No character select active right now.','error');return;}
+    if(cmd==='!random'){
+      const p=fight.p1.user.toLowerCase()===user.toLowerCase()?fight.p1:fight.p2.user.toLowerCase()===user.toLowerCase()?fight.p2:null;
+      if(!p)return;
+      autoAssign(p);setHUDFight(fight);
+      if(fight.p1.data&&fight.p2.data){clearInterval(pickTimeout);beginFight();}
+      return;
+    }
+    const raw=(parts[1]||'')+(parts[2]?(' '+parts[2]):'');
+    const key=Object.keys(CHARS).find(k=>k===raw||CHARS[k].name.toLowerCase()===raw||CHARS[k].name.toLowerCase().split(' ')[0]===raw);
+    if(key)playerPick(user,key);
+    else addChatMsg('Unknown fighter: "'+raw+'". Type !roster to see all fighters.','error');
+    return;
+  }
+
+  if(['!light','!heavy','!special','!super','!taunt'].includes(cmd)){
+    playerMove(user,cmd.replace('!',''));
+    return;
+  }
+
+  if(cmd==='!bet'){
+    const target=(parts[1]||'').replace('@','');
+    const amount=parseInt(parts[2])||50;
+    if(!fight){addChatMsg('No active fight to bet on.','error');return;}
+    if(amount<10){addChatMsg('Minimum bet is 10 coins.','error');return;}
+    if(getCoins(user)<amount){addChatMsg(user+': not enough coins! You have '+getCoins(user)+' coins.','error');return;}
+    spendCoins(user,amount);
+    if(!BETS[user])BETS[user]={target,amount};
+    addChatMsg(user+' bets '+amount+' coins on '+target+'!','system');
+    return;
+  }
+
+  if(cmd==='!coins'){addChatMsg(user+': you have '+getCoins(user)+' FNF coins.','system');return;}
+
+  if(cmd==='!roster'){
+    const list=Object.values(CHARS).filter(c=>!(STATE.vaulted&&c.hybrid)).map(c=>c.name).join(' · ');
+    addChatMsg('Fighters: '+list,'system');
+    return;
+  }
+
+  if(cmd==='!belt'){
+    if(!STATE.beltHolder)addChatMsg('FNF Belt is VACANT — first fight winner claims it! Type !fight @someone','system');
+    else addChatMsg('FNF Champion: '+STATE.beltHolder+' — '+STATE.beltDefenses+' defense'+(STATE.beltDefenses!==1?'s':'')+'. Type !challenge to take the belt!','system');
+    return;
+  }
+
+  if(cmd==='!vaulttime'){
+    if(!STATE.vaulted){addChatMsg('Ichigo & Zuko are available NOW as launch exclusives — play them while you can!','hybrid');return;}
+    const d=Math.floor((Date.now()-STATE.vaultTime)/(1000*60*60*24));
+    const h=Math.floor((Date.now()-STATE.vaultTime)/(1000*60*60));
+    addChatMsg('Ichigo & Zuko have been in the vault for '+(d>0?d+' days':h+' hours')+'. Nobody knows when they return.','hybrid');
+    return;
+  }
+
+  if(cmd==='!fnfhelp'||cmd==='!commands'){
+    addChatMsg('!fight @user — !fight @user auto — !fight @user mirror — !accept — !decline — !pick [name] — !random — !light !heavy !special !super !taunt — !challenge — !bet @user [coins] — !coins — !roster — !belt — !vaulttime','system');
+    return;
+  }
+}
+
+// ============================================================
+// WEBSOCKET
+// ============================================================
+let ws;
+function connectWS(){
+  ws=new WebSocket('ws://localhost:3001');
+  ws.onopen=()=>console.log('FNF Overlay connected');
+  ws.onmessage=(e)=>{
+    try{
+      const d=JSON.parse(e.data);
+      if(d.type==='chat')processCommand(d.user,d.msg,d.isBroadcaster||false);
+      if(d.type==='beltUpdate'){STATE.beltHolder=d.holder;STATE.beltDefenses=d.defenses||0;updateBeltDisplay();}
+    }catch(err){}
+  };
+  ws.onclose=()=>setTimeout(connectWS,3000);
+  ws.onerror=()=>{};
+}
+
+// ============================================================
+// INIT
+// ============================================================
+updateBeltDisplay();
+try{connectWS();}catch(e){}
+
+// Expire pending challenges
+setInterval(()=>{
+  if(pendingChallenge&&Date.now()>pendingChallenge.expires){
+    addChatMsg('Challenge from '+pendingChallenge.from+' expired.','normal');
+    pendingChallenge=null;
+  }
+},5000);
+
+// ============================================================
+// MAY 4TH STAR WARS SPRITES
+// ============================================================
+
+// Mace Windu — dark skin, purple saber, Jedi robes, bald
+function maceWindu(p){
+  // head — bald, dark complexion
+  p(11,1,10,8,'#5a3010');p(10,2,12,7,'#6b3a14');p(10,3,12,6,'#7a4318');
+  // face details
+  p(12,4,3,2,'#3d1e08');p(17,4,3,2,'#3d1e08'); // eyes
+  p(12,4,1,1,'#ff9900');p(17,4,1,1,'#ff9900'); // eye glow (force)
+  p(13,7,6,1,'#5a3010');  // mouth set firm
+  p(10,3,1,5,'#5a3010');p(21,3,1,5,'#5a3010'); // ears
+  // neck
+  p(14,9,4,2,'#6b3a14');
+  // Jedi robes — dark brown/tan layers
+  p(8,11,16,3,'#4a3010'); // shoulder layer
+  p(9,14,14,18,'#3d2808'); // main robe body
+  p(8,15,2,14,'#4a3010'); // left sleeve
+  p(22,15,2,14,'#4a3010'); // right sleeve
+  p(7,16,2,12,'#3d2808'); // left arm
+  p(23,16,2,12,'#3d2808'); // right arm
+  // inner tunic
+  p(11,11,10,20,'#2a1c05');
+  // belt
+  p(9,22,14,3,'#8b6914');p(14,21,4,5,'#6b4f10');
+  // hands
+  p(6,27,3,3,'#6b3a14');p(23,27,3,3,'#6b3a14');
+  // PURPLE LIGHTSABER in right hand
+  p(25,4,2,24,'#a855f7');p(25,4,1,24,'#d8b4fe');
+  p(26,4,1,24,'#7c3aed');
+  p(24,27,3,2,'#6b4f10'); // hilt
+  p(24,28,3,3,'#4a3010'); // hilt detail
+  // Jedi robe skirt / lower
+  p(9,32,6,12,'#3d2808');p(17,32,6,12,'#3d2808');
+  // legs dark
+  p(9,40,5,2,'#2a1c05');p(18,40,5,2,'#2a1c05');
+  // boots
+  p(8,42,6,4,'#1a0e02');p(18,42,6,4,'#1a0e02');
+}
+
+// Obi-Wan Kenobi — beard, tunic, blue saber, wise pose
+function obiWan(p){
+  // hair — light brown, beard
+  p(11,0,10,3,'#92714a');p(10,1,12,3,'#a07d54');
+  // face
+  p(10,3,12,7,'#d4a574');p(9,4,14,6,'#d4a574');
+  // beard
+  p(10,8,12,4,'#92714a');p(11,9,10,3,'#a07d54');
+  // eyes
+  p(12,5,3,2,'#2d5a8e');p(17,5,3,2,'#2d5a8e');
+  p(12,5,1,1,'#60a5fa');p(17,5,1,1,'#60a5fa');
+  // eyebrows — wise raised
+  p(12,4,4,1,'#7a5c38');p(17,4,4,1,'#7a5c38');
+  // ears
+  p(9,5,1,4,'#d4a574');p(22,5,1,4,'#d4a574');
+  // neck
+  p(14,10,4,2,'#d4a574');
+  // Jedi tunic — tan/cream layered
+  p(8,12,16,3,'#c4a265'); // shoulder
+  p(9,15,14,17,'#b89050'); // outer robe
+  p(7,16,2,14,'#c4a265'); // left sleeve wide
+  p(23,16,2,14,'#c4a265'); // right sleeve wide
+  p(6,17,2,12,'#b89050'); // arm
+  p(24,17,2,12,'#b89050'); // arm
+  p(11,12,10,20,'#8b6c38'); // inner darker tunic
+  // belt
+  p(9,23,14,3,'#6b4f10');p(14,22,4,5,'#4a3010');
+  // hands
+  p(5,28,3,3,'#d4a574');p(24,28,3,3,'#d4a574');
+  // BLUE LIGHTSABER — left hand raised
+  p(4,5,2,24,'#3b82f6');p(4,5,1,24,'#93c5fd');
+  p(5,5,1,24,'#2563eb');
+  p(3,28,3,2,'#6b4f10'); // hilt
+  p(3,29,3,3,'#4a3010');
+  // robe skirt
+  p(9,32,6,12,'#b89050');p(17,32,6,12,'#b89050');
+  // boots
+  p(8,42,6,4,'#3d2808');p(18,42,6,4,'#3d2808');
+}
+
+// Draw silhouettes (pure black with saber glow color)
+function drawSWSilhouette(canvas, fn, scale, saberColor){
+  canvas.width=32;canvas.height=48;
+  canvas.style.width=(32*scale)+'px';canvas.style.height=(48*scale)+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  // draw full character first
+  const p=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h);};
+  fn(p);
+  // composite to silhouette — very dark with slight color tint from saber
+  const imgData=ctx.getImageData(0,0,32,48);
+  const d=imgData.data;
+  const [sr,sg,sb]=saberColor;
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3]>10){
+      // dark silhouette with subtle color tint
+      d[i]=Math.round(sr*0.08);
+      d[i+1]=Math.round(sg*0.08);
+      d[i+2]=Math.round(sb*0.12);
+      d[i+3]=220;
+    }
+  }
+  ctx.putImageData(imgData,0,0);
+}
+
+// Draw the two silhouettes
+setTimeout(()=>{
+  const maceC=document.getElementById('sw-mace');
+  const obiC=document.getElementById('sw-obi');
+  if(maceC) drawSWSilhouette(maceC,maceWindu,1.625,[168,85,247]); // purple tint
+  if(obiC)  drawSWSilhouette(obiC, obiWan,  1.625,[59,130,246]);   // blue tint
+},200);
+
+// Ghost command to hide/show SW ad
+// !shadowswad — toggle the ad visibility (silent, broadcaster only)
+// This is handled in processCommand — injected via shadowswad in the ghost section
+</script>
+</body>
+</html>
