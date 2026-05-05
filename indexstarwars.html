@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>May the 4th — Stream Overlay</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    background: transparent;
+    overflow: hidden;
+    font-family: monospace;
+  }
+  /* battle arena — full bottom strip */
+  #arena {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 1920px; height: 300px;
+    image-rendering: pixelated;
+  }
+  /* command panel — right side, full height */
+  #panel {
+    position: absolute;
+    top: 0; right: 0;
+    width: 300px;
+    height: 1080px;
+    background: rgba(4, 4, 14, 0.88);
+    border-left: 2px solid rgba(68, 136, 255, 0.25);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
+  #panel-header {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid rgba(68, 136, 255, 0.18);
+    flex-shrink: 0;
+  }
+  #panel-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #panel-subtitle {
+    font-size: 10px;
+    color: rgba(136, 180, 255, 0.55);
+    letter-spacing: 0.06em;
+  }
+  #panel-saber-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #44aaff, #cc44ff, #ff4444);
+    margin-top: 12px;
+    border-radius: 2px;
+  }
+  #cmd-list {
+    flex: 1;
+    overflow: hidden;
+    padding: 10px 0;
+  }
+  .cmd-section {
+    padding: 8px 16px 4px;
+    font-size: 9px;
+    font-weight: bold;
+    color: rgba(136, 180, 255, 0.4);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .cmd-item {
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.2s;
+  }
+  .cmd-item:last-child { border-bottom: none; }
+  .cmd-name {
+    font-size: 13px;
+    font-weight: 900;
+    color: #44aaff;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+    text-shadow: 0 0 8px rgba(68,170,255,0.5);
+  }
+  .cmd-name.dark  { color: #ff6666; text-shadow: 0 0 8px rgba(255,68,68,0.5); }
+  .cmd-name.gold  { color: #ffcc44; text-shadow: 0 0 8px rgba(255,200,68,0.5); }
+  .cmd-name.mod   { color: #cc44ff; text-shadow: 0 0 8px rgba(200,68,255,0.4); }
+  .cmd-desc {
+    font-size: 10px;
+    color: rgba(200, 200, 220, 0.65);
+    line-height: 1.5;
+  }
+  .cmd-rare {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    background: rgba(255,200,68,0.15);
+    color: #ffcc44;
+    vertical-align: middle;
+  }
+  #panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(68,136,255,0.15);
+    flex-shrink: 0;
+  }
+  #side-score {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .side-pill {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 5px;
+    text-align: center;
+  }
+  .side-pill.light { background: rgba(20,60,140,0.5); border: 1px solid rgba(68,136,255,0.3); }
+  .side-pill.dark  { background: rgba(100,10,10,0.5);  border: 1px solid rgba(255,68,68,0.3); }
+  .side-pill-label { font-size: 8px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; }
+  .side-pill-count { font-size: 18px; font-weight: 900; margin-top: 2px; }
+  .side-pill.light .side-pill-count { color: #88ccff; }
+  .side-pill.dark  .side-pill-count { color: #ff8888; }
+  #may4-tag {
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 0.15em;
+    margin-top: 4px;
+  }
+
+  /* ── SHOW/HIDE WRAPPER ── */
+  #overlay-wrap {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1920px; height: 1080px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+  }
+  #overlay-wrap.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+</style>
+</head>
+<body>
+
+<div id="overlay-wrap">
+
+<!-- BATTLE ARENA CANVAS -->
+<canvas id="arena" width="1920" height="300"></canvas>
+
+<!-- RIGHT SIDE COMMAND PANEL -->
+<div id="panel">
+  <div id="panel-header">
+    <div id="panel-title">⚔ May the 4th</div>
+    <div id="panel-subtitle">Type these in chat to play</div>
+    <div id="panel-saber-bar"></div>
+  </div>
+
+  <div id="cmd-list">
+
+    <div class="cmd-section">Your identity</div>
+
+    <div class="cmd-item">
+      <div class="cmd-name">!destiny</div>
+      <div class="cmd-desc">Generate your Jedi name, Sith name, Playa title, lightsaber &amp; drip score. Pops on screen!</div>
+    </div>
+
+    <div class="cmd-item">
+      <div class="cmd-name gold">!dripcheck</div>
+      <div class="cmd-desc">Quick drip rating drops in chat. How much sauce do you have?</div>
+    </div>
+
+    <div class="cmd-section">Battle arena</div>
+
+    <div class="cmd-item">
+      <div class="cmd-name">!join</div>
+      <div class="cmd-desc">Drop your pixel fighter into the arena. Light or dark side — random pick. Max 6 fighters.</div>
+    </div>
+
+    <div class="cmd-item">
+      <div class="cmd-name dark">!standings</div>
+      <div class="cmd-desc">Show how many fighters are in the arena right now.</div>
+    </div>
+
+    <div class="cmd-section">Force vote</div>
+
+    <div class="cmd-item">
+      <div class="cmd-name">!lightside</div>
+      <div class="cmd-desc">Vote for the Light Side. 60 second vote — winner announced in chat.</div>
+    </div>
+
+    <div class="cmd-item">
+      <div class="cmd-name dark">!darkside</div>
+      <div class="cmd-desc">Vote for the Dark Side. Pick your allegiance.</div>
+    </div>
+
+    <div class="cmd-section">Mod only 👑</div>
+
+    <div class="cmd-item">
+      <div class="cmd-name mod">!start</div>
+      <div class="cmd-desc">Begin the battle. Fighters start auto-attacking each other.</div>
+    </div>
+
+    <div class="cmd-item">
+      <div class="cmd-name mod">!reset</div>
+      <div class="cmd-desc">Clear the arena and start a new round.</div>
+    </div>
+
+    <div class="cmd-item">
+      <div class="cmd-name mod">!order66</div>
+      <div class="cmd-desc">Flip ALL Light Side fighters to Dark Side for 5 minutes. Pure chaos.</div>
+    </div>
+
+  </div>
+
+  <div id="panel-footer">
+    <div id="side-score">
+      <div class="side-pill light">
+        <div class="side-pill-label">LIGHT SIDE</div>
+        <div class="side-pill-count" id="light-count">0</div>
+      </div>
+      <div class="side-pill dark">
+        <div class="side-pill-label">DARK SIDE</div>
+        <div class="side-pill-count" id="dark-count">0</div>
+      </div>
+    </div>
+    <div id="may4-tag">MAY THE 4TH BE WITH YOU</div>
+  </div>
+</div>
+
+</div> <!-- end #overlay-wrap -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  MAY THE 4TH — OBS OVERLAY
+//  Canvas: 1920x300 bottom strip (arena)
+//  Panel:  300px right side (commands + live counts)
+//  Connects to bot via ws://localhost:3001
+// ═══════════════════════════════════════════════════════════════
+
+const C   = document.getElementById("arena");
+const ctx = C.getContext("2d");
+const W   = 1920, H = 300, GY = 258;
+
+// ── DATA TABLES ─────────────────────────────────────────────
+const SKINS  = ["#FDBCB4","#F1A07A","#C68642","#8D5524","#6B3A2A","#FFDBB0"];
+const HAIRC  = ["#1a1a1a","#E24B4A","#EF9F27","#4488ff","#aa44ff","#22aa44","#ffaacc","#eee"];
+const SABER  = [
+  {name:"Sapphire",    col:"#44aaff", rare:"common"},
+  {name:"Emerald",     col:"#44ff88", rare:"common"},
+  {name:"Crimson",     col:"#ff4444", rare:"common"},
+  {name:"Violet",      col:"#cc44ff", rare:"rare"},
+  {name:"Gold",        col:"#ffcc00", rare:"rare"},
+  {name:"Arctic White",col:"#eeeeff", rare:"epic"},
+  {name:"Aqua",        col:"#00ffee", rare:"rare"},
+  {name:"Rose",        col:"#ff88cc", rare:"rare"},
+  {name:"Void Black",  col:"#555566", rare:"legendary"},
+];
+const BODYL  = ["#1a3a5c","#1a4a2a","#4a3010","#1a3a3a","#3a1a2a","#2a1a4a"];
+const BODYD  = ["#3a1010","#101a10","#1a1030","#2a1a08","#081a2a","#1a0a1a"];
+const TRIML  = ["#4488cc","#44aa66","#cc8833","#44aaaa","#aa6688","#7766cc"];
+const TRIMD  = ["#cc3333","#8833cc","#cc6688","#3388cc","#cc8833","#66ccaa"];
+const HAIRS  = ["mohawk","afro","hightop","locs","taper","bald"];
+const WPNS   = ["saber","dual","staff","blaster"];
+const JFIRST = ["Kael","Vaan","Lyra","Oren","Saya","Theron","Mira","Zeth","Aela","Davan","Noro","Rhen","Elan","Tavi","Sera","Dax","Phen","Brix","Jora","Wyn"];
+const JLAST  = ["Sunvaris","Korrath","Windara","Solenne","Nadir","Vayne","Ostara","Celwyn","Dawnfall","Mirevis","Ashveil","Luminar","Skyvane","Crestfall","Novalin"];
+const SFIRST = ["Darth","Lord","Darth","Dark Lord","Darth","Darth"];
+const SLAST  = ["Marevon","Korroth","Oblixus","Venrath","Malachar","Dreadmis","Nocturus","Vexal","Ragnok","Shadrak","Crimvale","Bolvex","Ominath","Skullvex","Tormentis"];
+const PLAYAS = ["Dusty Padawan","Space Hustler","Galactic Smooth Operator","Intergalactic Mac Daddy","The Chosen One (with Drip)"];
+const PLAYRARE=["common","common","common","rare","legendary"];
+const WEAPONS= ["Single Saber","Dual Sabers","Force Staff","Blaster","Energy Whip"];
+const VIBES  = [
+  "moving through the galaxy like rent is due",
+  "the drip is stronger than the Force",
+  "every planet they land on — just nods of respect",
+  "council tried to stop them, couldn't deny the sauce",
+  "floating through hyperspace in first class",
+  "so smooth even the droids respect it",
+  "the Force chose them, the fit sealed the deal",
+  "walking into the arena like they already won",
+];
+const ALIGNMENTS = ["Pure Jedi","Jedi Leaning","Balanced","Sith Leaning","Pure Sith"];
+
+// ── UTILS ────────────────────────────────────────────────────
+function ri(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function rr(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+  c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y);
+  c.closePath();
+}
+function pickSaber(){
+  const r=Math.random()*100;
+  if(r<45)  return SABER[ri(0,2)];
+  if(r<75)  return SABER[ri(3,4)];
+  if(r<88)  return SABER[ri(6,7)];
+  if(r<96)  return SABER[5];
+  return SABER[8];
+}
+
+// ── FIGHTER FACTORY ──────────────────────────────────────────
+function makeFighter(name, forceSide){
+  const side = forceSide || (Math.random()>0.5 ? "light" : "dark");
+  const idx  = ri(0,5);
+  const bt   = pick(["normal","stocky","tall","small"]);
+  const dims = {normal:{bw:5,bh:6,lh:5},stocky:{bw:7,bh:5,lh:4},tall:{bw:4,bh:8,lh:7},small:{bw:4,bh:5,lh:4}}[bt];
+  const sx   = side==="light" ? ri(60,440) : ri(W-740,W-360);
+  return {
+    id: Math.random().toString(36).slice(2),
+    name, side, dims, bt, P: 14,
+    skin:  pick(SKINS), hairC: pick(HAIRC), hairS: pick(HAIRS),
+    saberC: pickSaber().col,
+    bodyC: side==="light" ? BODYL[idx] : BODYD[idx],
+    trimC: side==="light" ? TRIML[idx] : TRIMD[idx],
+    weapon: pick(WPNS),
+    hp: 100, maxHp: 100,
+    x: sx, y: GY, facing: side==="light" ? 1 : -1,
+    target: null, attackCd: 0, alive: true,
+    phase: Math.random()*6.28,
+    swingAngle: 0, swingDir: 1, swingTarget: 0.1,
+    walkPhase: 0, moving: false, bobY: 0,
+    roamX: sx, roamTimer: ri(1000,3000),
+  };
+}
+
+// ── DRAW FIGHTER ─────────────────────────────────────────────
+function drawFighter(f){
+  const P=f.P, d=f.dims, fx=f.facing;
+  const bw=d.bw*P, bh=d.bh*P, lh=d.lh*P;
+  const hw=(d.bw+1.4)*P, hh=hw*0.72;
+  const cx=Math.round(f.x);
+  const by=Math.round(GY+f.bobY);
+  const lt=by-lh, bt2=lt-bh, ht=bt2-hh-P*0.3;
+
+  // shadow
+  ctx.fillStyle="rgba(0,0,0,0.3)";
+  ctx.beginPath(); ctx.ellipse(cx,by+4,bw*0.6,6,0,0,Math.PI*2); ctx.fill();
+
+  // legs
+  const ls=f.moving ? Math.sin(f.walkPhase)*P*1.2 : 0;
+  const lx1=cx-bw/2+P*0.5, lx2=cx+P*0.5;
+  ctx.fillStyle=f.trimC;
+  ctx.fillRect(~~lx1,~~(lt+ls),~~(P*2.2),~~(lh-Math.abs(ls)));
+  ctx.fillRect(~~lx2,~~(lt-ls),~~(P*2.2),~~(lh-Math.abs(ls)));
+  ctx.fillStyle="#111";
+  ctx.fillRect(~~(lx1-P*.2),~~(lt+lh-P),~~(P*2.8),~~(P*1.2));
+  ctx.fillRect(~~(lx2-P*.2),~~(lt+lh-P),~~(P*2.8),~~(P*1.2));
+
+  // body
+  ctx.fillStyle=f.bodyC; ctx.fillRect(~~(cx-bw/2),~~bt2,~~bw,~~bh);
+  ctx.fillStyle=f.trimC;
+  ctx.fillRect(~~(cx-bw/2+P),~~(bt2+P*.9),~~(bw-P*2),~~(P*1.1));
+  ctx.fillRect(~~(cx-bw/2),~~(bt2+bh*.62),~~bw,~~(P*.9));
+  ctx.fillStyle="#EF9F27";
+  ctx.fillRect(~~(cx-P*.6),~~(bt2+bh*.62-P*.3),~~(P*1.3),~~(P*1.5));
+
+  // arm + saber
+  const aax=fx>0 ? cx+bw/2-P*.5 : cx-bw/2+P*.5;
+  const aay=~~(bt2+P*1.6);
+  const aLen=P*3.4, aThk=P*1.7;
+  ctx.save(); ctx.translate(aax,aay); ctx.rotate(f.swingAngle*(fx>0?1:-1));
+  ctx.fillStyle=f.skin;
+  fx>0 ? ctx.fillRect(0,-aThk/2,aLen,aThk) : ctx.fillRect(-aLen,-aThk/2,aLen,aThk);
+  const ho=fx>0 ? aLen : -(aLen+P*2.5);
+  ctx.fillStyle="#aaa"; ctx.fillRect(~~ho,~~(-P*.95),~~(P*2.5),~~(P*1.9));
+  ctx.fillStyle="#666"; ctx.fillRect(~~(ho-P*.4),~~(-P*1.4),~~(P*3.3),~~(P*.75));
+  const bs=fx>0 ? ho+P*2.5 : ho-P*14, bl=P*14;
+  ctx.shadowColor=f.saberC;
+  ctx.shadowBlur=28; ctx.fillStyle=f.saberC+"33"; ctx.fillRect(~~bs,~~(-P*1.1),~~bl,~~(P*2.2));
+  ctx.shadowBlur=18; ctx.fillStyle=f.saberC+"88"; ctx.fillRect(~~bs,~~(-P*.65),~~bl,~~(P*1.3));
+  ctx.shadowBlur=8;  ctx.fillStyle="#fff";          ctx.fillRect(~~(bs+P*.4),~~(-P*.28),~~(bl-P*.8),~~(P*.56));
+  ctx.shadowBlur=0; ctx.restore();
+
+  // head
+  ctx.fillStyle=f.skin; ctx.fillRect(~~(cx-hw/2),~~ht,~~hw,~~hh);
+
+  // hair
+  ctx.fillStyle=f.hairC;
+  if(f.hairS==="bald"){ ctx.fillStyle="rgba(255,255,255,.2)"; ctx.fillRect(~~(cx-P*.8),~~(ht+P*.3),~~P,~~(P*.4)); }
+  else if(f.hairS==="mohawk"){ ctx.fillRect(~~(cx-P*.7),~~(ht-P*4.5),~~(P*1.4),~~(P*4.8)); ctx.fillRect(~~(cx-P*1.2),~~(ht-P*2.5),~~(P*2.4),~~(P*2)); }
+  else if(f.hairS==="afro"){ ctx.fillRect(~~(cx-hw/2-.5*P),~~(ht-P*1.2),~~(hw+P),~~(P*1.6)); ctx.fillRect(~~(cx-hw/2-P),~~ht,~~P,~~(hh*.55)); ctx.fillRect(~~(cx+hw/2),~~ht,~~P,~~(hh*.55)); ctx.fillRect(~~(cx-hw/2),~~(ht-P*2.2),~~hw,~~(P*1.3)); }
+  else if(f.hairS==="hightop"){ ctx.fillRect(~~(cx-hw/2+P),~~(ht-P*4.8),~~(hw-P*2),~~(P*5)); ctx.fillRect(~~(cx-hw/2),~~(ht-P*4.8),~~P,~~(P*5)); }
+  else if(f.hairS==="locs"){ ctx.fillRect(~~(cx-hw/2),~~ht,~~hw,~~P); for(let i=0;i<5;i++) ctx.fillRect(~~(cx-hw/2+i*(hw/5)+P*.2),~~(ht+P),~~(P*.9),~~(hh*.85)); }
+  else{ ctx.fillRect(~~(cx-hw/2+P),~~ht,~~(hw-P*2),~~(P*1.3)); ctx.fillRect(~~(cx-hw/2+P*1.5),~~(ht-P*.8),~~(hw-P*3),~~(P*.8)); }
+
+  // eyes
+  ctx.fillStyle="#111";
+  ctx.fillRect(~~(cx-hw*.29),~~(ht+hh*.33),~~(P*.9),~~(P*.9));
+  ctx.fillRect(~~(cx+hw*.08),~~(ht+hh*.33),~~(P*.9),~~(P*.9));
+  ctx.fillStyle="#fff";
+  ctx.fillRect(~~(cx-hw*.29+P*.15),~~(ht+hh*.33-P*.14),~~(P*.38),~~(P*.38));
+  ctx.fillRect(~~(cx+hw*.08+P*.15),~~(ht+hh*.33-P*.14),~~(P*.38),~~(P*.38));
+  ctx.fillStyle=f.side==="light"?"#993333":"#333";
+  ctx.fillRect(~~(cx-P*1.1),~~(ht+hh*.73),~~(P*2.2),~~(P*.65));
+
+  // name pill above head
+  const nfs=22;
+  ctx.font=`900 ${nfs}px monospace`; ctx.textAlign="center";
+  const nm=(f.name.length>14?f.name.slice(0,13)+"…":f.name).toUpperCase();
+  const nmW=ctx.measureText(nm).width;
+  const npx=cx-nmW/2-10, npy=ht-nfs-20;
+  const npw=nmW+20, nph=nfs+14;
+  ctx.fillStyle=f.side==="light"?"rgba(8,20,50,0.92)":"rgba(50,5,5,0.92)";
+  rr(ctx,npx,npy,npw,nph,5); ctx.fill();
+  ctx.strokeStyle=f.side==="light"?"#3377bb":"#bb3333";
+  ctx.lineWidth=2; rr(ctx,npx,npy,npw,nph,5); ctx.stroke();
+  ctx.shadowColor=f.side==="light"?"#44aaff":"#ff5555"; ctx.shadowBlur=8;
+  ctx.fillStyle=f.side==="light"?"#99ddff":"#ffaaaa";
+  ctx.fillText(nm,cx,npy+nfs+6);
+  ctx.shadowBlur=0;
+}
+
+// ── HP BARS fixed at canvas bottom ───────────────────────────
+function drawHPBars(){
+  const live=fighters.filter(f=>f.alive);
+  if(!live.length) return;
+  const bh=18, gap=8;
+  // arena width minus the panel (300px) and some padding
+  const arenaW=W-320;
+  const bw=Math.min(200,(arenaW-20)/live.length-gap);
+  const totalW=live.length*(bw+gap)-gap;
+  let bx=(arenaW-totalW)/2, by=H-bh-6;
+  live.forEach(f=>{
+    ctx.fillStyle="rgba(0,0,0,0.8)";
+    rr(ctx,bx-2,by-2,bw+4,bh+4,4); ctx.fill();
+    ctx.fillStyle="#1a1a1a"; ctx.fillRect(~~bx,~~by,~~bw,~~bh);
+    const pct=f.hp/f.maxHp;
+    const bc=pct>0.6?"#33bb55":pct>0.3?"#EF9F27":"#E24B4A";
+    ctx.shadowColor=bc; ctx.shadowBlur=10;
+    ctx.fillStyle=bc; ctx.fillRect(~~bx,~~by,~~(bw*pct),~~bh);
+    ctx.shadowBlur=0;
+    ctx.strokeStyle=f.side==="light"?"rgba(68,136,200,0.5)":"rgba(200,68,68,0.5)";
+    ctx.lineWidth=1.5; ctx.strokeRect(~~bx,~~by,~~bw,~~bh);
+    ctx.font="bold 11px monospace"; ctx.textAlign="center";
+    ctx.fillStyle="rgba(255,255,255,0.9)";
+    const sn=f.name.length>10?f.name.slice(0,9)+"…":f.name;
+    ctx.fillText(sn.toUpperCase(),~~(bx+bw/2),~~(by+bh*.74));
+    bx+=bw+gap;
+  });
+}
+
+// ── DESTINY CARD ─────────────────────────────────────────────
+let destCard=null;
+
+function showDestinyCard(data){
+  destCard={ ...data, life:600, maxLife:600 };
+}
+
+function drawDestCard(){
+  if(!destCard) return;
+  if(destCard.life<=0){ destCard=null; return; }
+  const alpha=Math.min(1, destCard.life<60 ? destCard.life/60 : 1);
+  ctx.save(); ctx.globalAlpha=alpha;
+
+  const cd=destCard, isLight=cd.side==="light";
+  const acol=isLight?"#3377cc":"#cc3333";
+  const cw=580, ch=290;
+  // center card in arena area (not covering panel)
+  const arenaW=W-320;
+  const cx2=arenaW*0.5, cy2=H*0.52;
+  const x=cx2-cw/2, y=cy2-ch/2;
+  const pad=18;
+
+  // card bg
+  const grad=ctx.createLinearGradient(x,y,x+cw,y+ch);
+  grad.addColorStop(0,isLight?"#040d1e":"#150404");
+  grad.addColorStop(1,isLight?"#060f28":"#1a0505");
+  ctx.fillStyle=grad; rr(ctx,x,y,cw,ch,12); ctx.fill();
+  ctx.shadowColor=acol; ctx.shadowBlur=24;
+  ctx.strokeStyle=acol; ctx.lineWidth=2.5;
+  rr(ctx,x+1,y+1,cw-2,ch-2,11); ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=isLight?"rgba(68,136,255,0.15)":"rgba(255,68,68,0.15)";
+  ctx.lineWidth=1; rr(ctx,x+6,y+6,cw-12,ch-12,9); ctx.stroke();
+
+  // saber top bar
+  const barH=6;
+  ctx.shadowColor=cd.saber.col; ctx.shadowBlur=16;
+  ctx.fillStyle=cd.saber.col; ctx.fillRect(x+pad,y+pad,cw-pad*2,barH);
+  ctx.fillStyle="#fff"; ctx.fillRect(x+pad+2,y+pad+barH*.3,cw-pad*2-4,barH*.4);
+  ctx.shadowBlur=0;
+
+  // username
+  ctx.font="900 26px monospace"; ctx.textAlign="left";
+  ctx.shadowColor=acol; ctx.shadowBlur=12;
+  ctx.fillStyle="#fff";
+  ctx.fillText((cd.name.length>20?cd.name.slice(0,19)+"…":cd.name).toUpperCase(),x+pad,y+pad+barH+30);
+  ctx.shadowBlur=0;
+
+  // side pill
+  ctx.font="bold 11px monospace";
+  const stlbl=isLight?"LIGHT SIDE":"DARK SIDE";
+  const stW=ctx.measureText(stlbl).width+16;
+  ctx.fillStyle=isLight?"rgba(30,80,180,0.7)":"rgba(160,20,20,0.7)";
+  rr(ctx,x+cw-pad-stW,y+pad+barH+8,stW,20,4); ctx.fill();
+  ctx.strokeStyle=acol; ctx.lineWidth=1;
+  rr(ctx,x+cw-pad-stW,y+pad+barH+8,stW,20,4); ctx.stroke();
+  ctx.fillStyle=isLight?"#88ccff":"#ff9988"; ctx.textAlign="right";
+  ctx.fillText(stlbl,x+cw-pad-8,y+pad+barH+22);
+
+  // divider
+  const divY=y+pad+barH+42;
+  ctx.strokeStyle=isLight?"rgba(68,136,255,0.2)":"rgba(255,68,68,0.2)";
+  ctx.lineWidth=1; ctx.setLineDash([4,6]);
+  ctx.beginPath(); ctx.moveTo(x+pad,divY); ctx.lineTo(x+cw-pad,divY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // grid
+  const col1=x+pad, col2=x+cw*0.5+4;
+  let ry=divY+16;
+  const lblFs=10, valFs=14, rowGap=50;
+  function rareCol(r){ return r==="legendary"?"#ffcc00":r==="epic"?"#cc44ff":r==="rare"?"#44aaff":"#aaa"; }
+
+  function drawRow(rx,ry,label,value,valCol,badge){
+    ctx.font=`bold ${lblFs}px monospace`; ctx.textAlign="left";
+    ctx.fillStyle=isLight?"rgba(100,180,255,0.55)":"rgba(255,120,120,0.55)";
+    ctx.fillText(label,rx,ry);
+    ctx.font=`bold ${valFs}px monospace`; ctx.fillStyle=valCol||"#fff";
+    ctx.fillText(value,rx,ry+valFs+3);
+    if(badge){
+      ctx.font="bold 9px monospace";
+      const bw2=ctx.measureText(badge.text).width+10;
+      ctx.fillStyle=badge.bg; rr(ctx,rx,ry+valFs+7,bw2,16,3); ctx.fill();
+      ctx.fillStyle=badge.tc; ctx.textAlign="left";
+      ctx.fillText(badge.text,rx+5,ry+valFs+18);
+    }
+  }
+
+  drawRow(col1,ry,"JEDI NAME",cd.jName,"#88ccff");
+  drawRow(col2,ry,"SITH NAME",cd.sName,"#ff9988");
+  ry+=rowGap;
+
+  const plaRC=rareCol(cd.plaRare);
+  drawRow(col1,ry,"PLAYA TITLE",cd.playa.length>22?cd.playa.slice(0,21)+"…":cd.playa,plaRC,
+    cd.plaRare!=="common"?{text:cd.plaRare.toUpperCase(),bg:plaRC+"22",tc:plaRC}:null);
+  drawRow(col2,ry,"WEAPON",cd.weapon,"#ddd");
+  ry+=rowGap;
+
+  // saber preview
+  ctx.font=`bold ${lblFs}px monospace`; ctx.textAlign="left";
+  ctx.fillStyle=isLight?"rgba(100,180,255,0.55)":"rgba(255,120,120,0.55)";
+  ctx.fillText("LIGHTSABER",col1,ry);
+  ctx.shadowColor=cd.saber.col; ctx.shadowBlur=14;
+  ctx.fillStyle=cd.saber.col; ctx.fillRect(col1,ry+5,90,10);
+  ctx.fillStyle="#fff"; ctx.fillRect(col1+2,ry+7,86,6);
+  ctx.shadowBlur=0;
+  ctx.font=`bold ${valFs}px monospace`; ctx.fillStyle=cd.saber.col;
+  ctx.fillText(cd.saber.name,col1+96,ry+valFs+2);
+  if(cd.saber.rare!=="common"){
+    const rc=rareCol(cd.saber.rare); ctx.font="bold 9px monospace";
+    const bw2=ctx.measureText(cd.saber.rare.toUpperCase()).width+10;
+    ctx.fillStyle=rc+"22"; rr(ctx,col1,ry+valFs+7,bw2,16,3); ctx.fill();
+    ctx.fillStyle=rc; ctx.textAlign="left"; ctx.fillText(cd.saber.rare.toUpperCase(),col1+5,ry+valFs+18);
+  }
+
+  // alignment
+  ctx.font=`bold ${lblFs}px monospace`; ctx.textAlign="left";
+  ctx.fillStyle=isLight?"rgba(100,180,255,0.55)":"rgba(255,120,120,0.55)";
+  ctx.fillText("FORCE ALIGNMENT",col2,ry);
+  const abW=cw-pad-(col2-x)-pad, abH=10, abY=ry+6;
+  ctx.fillStyle="#111"; ctx.fillRect(col2,abY,abW,abH);
+  const ag=ctx.createLinearGradient(col2,0,col2+abW,0);
+  ag.addColorStop(0,"#44aaff"); ag.addColorStop(1,"#ff4444");
+  ctx.fillStyle=ag; ctx.fillRect(col2,abY,abW,abH);
+  const ptrX=col2+abW*(cd.alignIdx/4);
+  ctx.fillStyle="#fff"; ctx.shadowColor="#fff"; ctx.shadowBlur=8;
+  ctx.fillRect(ptrX-2,abY-4,4,abH+8); ctx.shadowBlur=0;
+  ctx.font=`bold ${valFs}px monospace`; ctx.fillStyle="#ddd";
+  ctx.fillText(cd.alignment,col2,ry+valFs+abH+8);
+  ry+=rowGap;
+
+  // bottom strip
+  const stripY=y+ch-pad-40;
+  ctx.fillStyle=isLight?"rgba(20,50,100,0.4)":"rgba(80,10,10,0.4)";
+  rr(ctx,x+pad,stripY,cw-pad*2,40,6); ctx.fill();
+  ctx.strokeStyle=isLight?"rgba(68,136,255,0.2)":"rgba(255,68,68,0.2)";
+  ctx.lineWidth=1; rr(ctx,x+pad,stripY,cw-pad*2,40,6); ctx.stroke();
+  ctx.font="bold 11px monospace";
+  ctx.fillStyle="rgba(200,200,200,0.55)"; ctx.textAlign="left";
+  ctx.fillText("MIDICHLORIANS",x+pad+10,stripY+13);
+  ctx.fillStyle="#fff"; ctx.fillText(cd.midi,x+pad+10,stripY+28);
+  ctx.fillStyle="rgba(200,200,200,0.55)"; ctx.textAlign="center";
+  ctx.fillText("DRIP SCORE",x+cw/2,stripY+13);
+  ctx.fillStyle=plaRC; ctx.shadowColor=plaRC; ctx.shadowBlur=8;
+  ctx.fillText(cd.drip,x+cw/2,stripY+28); ctx.shadowBlur=0;
+  ctx.fillStyle="rgba(200,200,200,0.55)"; ctx.textAlign="right";
+  ctx.fillText("VIBE",x+cw-pad-10,stripY+13);
+  ctx.font="italic 10px monospace"; ctx.fillStyle="rgba(200,200,200,0.75)";
+  const vibeShort=cd.vibe.length>32?cd.vibe.slice(0,31)+"…":cd.vibe;
+  ctx.fillText(vibeShort,x+cw-pad-10,stripY+28);
+
+  ctx.restore();
+  destCard.life--;
+}
+
+// ── HIT FX ───────────────────────────────────────────────────
+let hitFx=[];
+function spawnHit(x,y,dmg,col){
+  hitFx.push({x,y,text:"-"+dmg+" "+pick(["!","!!","*","#","!!!"]),col,life:28,maxLife:28});
+}
+function drawHits(){
+  hitFx=hitFx.filter(h=>h.life>0);
+  hitFx.forEach(h=>{
+    ctx.save(); ctx.globalAlpha=h.life/h.maxLife;
+    ctx.font="bold 28px monospace"; ctx.textAlign="center";
+    ctx.shadowColor=h.col; ctx.shadowBlur=10;
+    ctx.fillStyle=h.col; ctx.fillText(h.text,~~h.x,~~h.y);
+    ctx.shadowBlur=0; ctx.restore();
+    h.y-=2.5; h.life--;
+  });
+}
+
+// ── BACKGROUND ───────────────────────────────────────────────
+function drawBG(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#07070e"; ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H*0.35);
+  g.addColorStop(0,"rgba(7,7,14,0)"); g.addColorStop(1,"rgba(7,7,14,1)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H*0.35);
+  ctx.strokeStyle="rgba(55,55,130,0.28)"; ctx.lineWidth=1.5; ctx.setLineDash([6,14]);
+  ctx.beginPath(); ctx.moveTo(0,H-28); ctx.lineTo(W-300,H-28); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── SIDE PANEL LIVE COUNTS ────────────────────────────────────
+function updatePanelCounts(){
+  const live=fighters.filter(f=>f.alive);
+  document.getElementById("light-count").textContent=live.filter(f=>f.side==="light").length;
+  document.getElementById("dark-count").textContent=live.filter(f=>f.side==="dark").length;
+}
+
+// ── GAME LOOP ─────────────────────────────────────────────────
+let fighters=[], raf=null, lastT=0, battleRunning=false;
+
+function loop(now){
+  const dt=Math.min(now-lastT,50); lastT=now;
+  drawBG();
+
+  const alive=fighters.filter(f=>f.alive);
+
+  if(battleRunning && alive.length>=2){
+    alive.forEach(f=>{
+      f.attackCd=Math.max(0,f.attackCd-dt);
+      f.phase+=dt*0.005;
+      f.roamTimer=Math.max(0,(f.roamTimer||0)-dt);
+      if(f.roamTimer<=0){ f.roamX=ri(60,W-360); f.roamTimer=ri(1800,3800); }
+      if(!f.target||!f.target.alive)
+        f.target=pick(alive.filter(t=>t.id!==f.id));
+      const t=f.target; if(!t) return;
+      const dx=t.x-f.x, dist=Math.abs(dx);
+      f.facing=dx>0?1:-1;
+      const RANGE=f.weapon==="blaster"?320:160;
+      if(dist>RANGE){
+        f.moving=true;
+        const targetX=t.x+(f.roamX-t.x)*0.15;
+        f.x+=Math.sign(targetX-f.x)*0.085*dt;
+        f.x=Math.max(50,Math.min(W-360,f.x));
+        f.walkPhase+=dt*0.013;
+        f.swingAngle+=(0.15-f.swingAngle)*0.07;
+      } else {
+        f.moving=false; f.walkPhase=0;
+        f.swingAngle+=(Math.sin(f.phase*1.2)*0.12-f.swingAngle)*0.05;
+        if(f.attackCd<=0){
+          const dmg=ri(8,24);
+          t.hp=Math.max(0,t.hp-dmg);
+          f.attackCd=ri(480,1100);
+          f.swingDir*=-1; f.swingTarget=f.swingDir>0?0.75:-0.05;
+          spawnHit(t.x,t.y-80,dmg,f.saberC);
+          if(t.hp<=0){
+            t.alive=false; f.target=null;
+            if(ws && ws.readyState===1) ws.send(JSON.stringify({type:"eliminated",name:t.name}));
+            updatePanelCounts();
+          }
+        }
+        f.swingAngle+=(f.swingTarget-f.swingAngle)*0.14;
+      }
+      if(dist>RANGE+120) f.x+=(f.roamX-f.x)*0.0001*dt;
+      f.bobY=Math.sin(f.phase*1.6)*(f.moving?3:5);
+    });
+
+    if(alive.length===1){
+      battleRunning=false;
+      if(ws && ws.readyState===1) ws.send(JSON.stringify({type:"winner",name:alive[0].name}));
+    }
+  }
+
+  fighters.forEach(f=>{
+    if(!f.alive){ ctx.save(); ctx.globalAlpha=0.12; }
+    drawFighter(f);
+    if(!f.alive) ctx.restore();
+  });
+
+  drawHits();
+  drawHPBars();
+  drawDestCard();
+
+  raf=requestAnimationFrame(loop);
+}
+
+// ── WEBSOCKET ─────────────────────────────────────────────────
+let ws;
+function connectWS(){
+  ws=new WebSocket("ws://localhost:3001");
+  ws.onopen=()=>console.log("Overlay connected to bot");
+  ws.onmessage=(e)=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==="join"){
+      if(fighters.filter(f=>f.alive).length>=6) return;
+      fighters.push(makeFighter(msg.name, msg.side));
+      if(!battleRunning && fighters.filter(f=>f.alive).length>=2) battleRunning=true;
+      updatePanelCounts();
+    }
+    if(msg.type==="start")  { battleRunning=true; }
+    if(msg.type==="reset")  { fighters=[]; hitFx=[]; destCard=null; battleRunning=false; updatePanelCounts(); }
+    if(msg.type==="destiny"){ showDestinyCard(msg.data); }
+    if(msg.type==="showbattle"){
+      document.getElementById("overlay-wrap").classList.add("visible");
+    }
+    if(msg.type==="hidebattle"){
+      document.getElementById("overlay-wrap").classList.remove("visible");
+    }
+    if(msg.type==="order66"){
+      fighters.filter(f=>f.alive&&f.side==="light").forEach(f=>{ f.side="dark"; });
+      updatePanelCounts();
+      setTimeout(()=>{
+        fighters.filter(f=>f.alive&&f.side==="dark").forEach(f=>{ f.side="light"; });
+        updatePanelCounts();
+      },5*60*1000);
+    }
+  };
+  ws.onclose=()=>setTimeout(connectWS,3000);
+  ws.onerror=()=>ws.close();
+}
+
+connectWS();
+raf=requestAnimationFrame(loop);
+</script>
+</body>
+</html>
